@@ -1,0 +1,14 @@
+# อนุญาตให้ดาวน์โหลดไฟล์ .wav ตรงๆ ได้ (บอร์ดซิงก์ไฟล์เหล่านี้ลง SD การ์ดครั้งเดียวตอนบูท)
+# เป็นไฟล์เสียงคำศัพท์ทั่วไป ไม่ใช่ข้อมูลเฉพาะอุปกรณ์ จึงไม่ต้องมี key ป้องกัน
+# ปิดการ list ไฟล์ในโฟลเดอร์ และห้ามรันไฟล์ .php ใดๆ ที่นี่ (เผื่อมีในอนาคต)
+Options -Indexes
+
+<FilesMatch "\.php$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>

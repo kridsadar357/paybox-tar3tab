@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-label="PayBox">
+  <rect width="180" height="180" rx="40" fill="#0F766E"/>
+  <g fill="#fff" transform="translate(26 26) scale(2.0)">
+    <path d="M14 14h16v16H14V14zm4 4v8h8v-8h-8z"/>
+    <path d="M34 14h16v16H34V14zm4 4v8h8v-8h-8z"/>
+    <path d="M14 34h16v16H14V34zm4 4v8h8v-8h-8z"/>
+    <rect x="36" y="36" width="5" height="5" rx="1"/>
+    <rect x="45" y="36" width="5" height="5" rx="1"/>
+    <rect x="36" y="45" width="5" height="5" rx="1"/>
+    <rect x="45" y="45" width="5" height="5" rx="1"/>
+  </g>
+</svg>

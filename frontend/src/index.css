@@ -1,0 +1,317 @@
+@import "tailwindcss";
+
+/* IBM Plex Sans Thai — เลือกเพราะออกแบบอักษรไทยกับละตินมาด้วยกันตั้งแต่ต้น (ไม่ใช่ไทยแปะทีหลัง)
+   บุคลิกเชิงเทคนิค-บรรณาธิการ เหมาะกับเครื่องมือทางการเงิน  •  Mono ใช้กับ "ตัวเลขทุกตัว" */
+@import "@fontsource/ibm-plex-sans-thai/400.css";
+@import "@fontsource/ibm-plex-sans-thai/500.css";
+@import "@fontsource/ibm-plex-sans-thai/600.css";
+@import "@fontsource/ibm-plex-sans-thai/700.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/600.css";
+
+/* ============================================================
+   Remap โทเคนสีของ Tailwind ให้ชี้มาที่ตัวแปรธีมใหม่
+   ------------------------------------------------------------
+   ฝั่ง admin เขียนด้วยคลาสตระกูล slate และ teal กระจายอยู่ ~150 จุดใน 6 ไฟล์
+   แทนที่จะไล่แก้ทีละคลาส ทำ mapping ที่นี่ที่เดียว — คลาสเดิมทั้งหมดจึงเปลี่ยนไปใช้
+   จานสีใหม่ทันที และเพราะชี้ไปที่ CSS variable (ไม่ใช่ค่าคงที่) จึงสลับ light/dark ตามธีมได้ด้วย
+   ใช้ @theme inline เพื่อให้ค่าเป็น reference ไม่ใช่ค่าที่ถูก copy ตอน build
+   ============================================================ */
+@theme inline {
+  --color-slate-950: var(--paper);
+  --color-slate-900: var(--surface);
+  --color-slate-800: var(--line);
+  --color-slate-700: var(--line-strong);
+  --color-slate-600: var(--ink-faint);
+  --color-slate-500: var(--ink-faint);
+  --color-slate-400: var(--ink-soft);
+  --color-slate-300: var(--ink-soft);
+  --color-slate-200: var(--ink);
+  --color-slate-100: var(--ink);
+  --color-slate-50:  var(--ink);
+
+  --color-teal-600: var(--jade-hover);
+  --color-teal-500: var(--jade);
+  --color-teal-400: var(--jade);
+  --color-teal-300: var(--jade-hover);
+
+  --color-emerald-500: var(--up);
+  --color-emerald-400: var(--up);
+  --color-rose-500: var(--down);
+  --color-rose-400: var(--down);
+  --color-amber-500: var(--wait);
+  --color-amber-400: var(--wait);
+  --color-violet-500: var(--jade);
+  --color-violet-400: var(--jade);
+}
+
+@layer base {
+  /* ---------- Light (ค่าเริ่มต้น — พื้นกระดาษ) ----------
+     นิวทรัลทุกตัวเอียงไปทางเขียวหยกนิดๆ ไม่ใช่เทากลางๆ ที่ดูไม่ได้ตั้งใจเลือก */
+  :root {
+    --paper:       #FCFCFA;
+    --surface:     #FFFFFF;
+    --sunk:        #F1F3EF;
+    --line:        #E4E7E1;
+    --line-strong: #CBD2CB;
+
+    --ink:         #131A1B;
+    --ink-soft:    #5A6668;
+    --ink-faint:   #8B9694;
+
+    --jade:        #0F766E;
+    --jade-hover:  #115E56;
+    --jade-wash:   #E6F2F0;
+    --jade-line:   #A9D5CE;
+
+    --up:          #15803D;
+    --up-wash:     #E8F4EB;
+    --down:        #B42318;
+    --down-wash:   #FBECEA;
+    --wait:        #B45309;
+    --wait-wash:   #FBF0E2;
+
+    --overlay:     rgba(19, 26, 27, .48);
+    --lift:        0 1px 2px rgba(19,26,27,.05), 0 12px 28px -18px rgba(19,26,27,.28);
+
+    --sans: "IBM Plex Sans Thai", "Leelawadee UI", system-ui, -apple-system, sans-serif;
+    --mono: "IBM Plex Mono", "Cascadia Mono", Consolas, ui-monospace, monospace;
+  }
+
+  /* ---------- Dark ----------
+     near-black แบบนิวทรัลอุ่น จงใจไม่ใช้ slate-blue (#0F172A) ที่เป็นค่าเริ่มต้นของ dashboard ทั่วไป */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:       #0C1011;
+      --surface:     #12191A;
+      --sunk:        #161E1F;
+      --line:        #232C2D;
+      --line-strong: #35403F;
+
+      --ink:         #E9EFEC;
+      --ink-soft:    #97A5A3;
+      --ink-faint:   #6E7C7A;
+
+      --jade:        #2DD4BF;
+      --jade-hover:  #5EE7D4;
+      --jade-wash:   #0C2E2A;
+      --jade-line:   #1A5049;
+
+      --up:          #4ADE80;
+      --up-wash:     #0E2C1A;
+      --down:        #F98B80;
+      --down-wash:   #331A19;
+      --wait:        #F0B457;
+      --wait-wash:   #2E2415;
+
+      --overlay:     rgba(4, 7, 7, .66);
+      --lift:        0 1px 2px rgba(0,0,0,.45), 0 16px 34px -20px rgba(0,0,0,.8);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:       #0C1011;
+    --surface:     #12191A;
+    --sunk:        #161E1F;
+    --line:        #232C2D;
+    --line-strong: #35403F;
+
+    --ink:         #E9EFEC;
+    --ink-soft:    #97A5A3;
+    --ink-faint:   #6E7C7A;
+
+    --jade:        #2DD4BF;
+    --jade-hover:  #5EE7D4;
+    --jade-wash:   #0C2E2A;
+    --jade-line:   #1A5049;
+
+    --up:          #4ADE80;
+    --up-wash:     #0E2C1A;
+    --down:        #F98B80;
+    --down-wash:   #331A19;
+    --wait:        #F0B457;
+    --wait-wash:   #2E2415;
+
+    --overlay:     rgba(4, 7, 7, .66);
+    --lift:        0 1px 2px rgba(0,0,0,.45), 0 16px 34px -20px rgba(0,0,0,.8);
+  }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection { background: var(--jade-wash); color: var(--ink); }
+}
+
+/* ============================================================
+   คลาสร่วมของทั้งระบบ
+   ============================================================ */
+
+/* .glass-panel เดิมถูกใช้ทั่วฝั่ง admin — คงชื่อไว้แต่เปลี่ยนหน้าตาให้เป็นแผ่นทึบมีเส้นขอบ
+   ฝั่ง admin เลยได้ palette ใหม่ทันทีโดยไม่ต้องรื้อ component ทีละตัว */
+.glass-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.glass-panel-hover { transition: border-color .16s ease, background-color .16s ease; }
+.glass-panel-hover:hover { border-color: var(--line-strong); }
+
+/* ---- ตัวเลขทุกตัวในระบบ: mono + tabular ให้หลักตรงกันเสมอ ---- */
+.figure {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -.01em;
+}
+
+/* ---- ป้ายกำกับตัวเล็ก ---- */
+.label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* ---- แผ่นเนื้อหา ---- */
+.sheet {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+/* ---- เส้นคั่นบางแทนการซ้อนกล่อง ---- */
+.rule { border-top: 1px solid var(--line); }
+
+/* ---- ชิปสถานะ: จุดสีเล็กๆ + ตัวหนังสือ ไม่ใช้ขอบเรืองแสง ---- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .04em;
+  padding: 3px 9px 3px 7px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.chip::before {
+  content: "";
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+.chip-up   { color: var(--up);   background: var(--up-wash);   border-color: color-mix(in srgb, var(--up) 22%, transparent); }
+.chip-down { color: var(--down); background: var(--down-wash); border-color: color-mix(in srgb, var(--down) 22%, transparent); }
+.chip-wait { color: var(--wait); background: var(--wait-wash); border-color: color-mix(in srgb, var(--wait) 24%, transparent); }
+.chip-mute { color: var(--ink-faint); background: var(--sunk); border-color: var(--line); }
+
+/* ---- ปุ่ม ---- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 9px 16px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+  white-space: nowrap;
+}
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+.btn-primary { background: var(--jade); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--jade-hover); }
+:root[data-theme="dark"] .btn-primary,
+:root:not([data-theme="light"]) .btn-primary { color: #06231F; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .btn-primary { color: #fff; }
+}
+
+.btn-ghost { background: transparent; color: var(--ink-soft); border-color: var(--line); }
+.btn-ghost:hover:not(:disabled) { background: var(--sunk); color: var(--ink); border-color: var(--line-strong); }
+
+.btn-quiet { background: transparent; color: var(--ink-soft); padding: 6px 10px; }
+.btn-quiet:hover:not(:disabled) { background: var(--sunk); color: var(--ink); }
+
+/* การกระทำที่ถอยกลับยาก (ปิด 2FA, ระงับบัญชี) — เป็นปุ่มโครงไม่ใช่ปุ่มทึบแดง
+   เพราะไม่ควรเป็นสิ่งที่ตาไปหยุดก่อนปุ่มหลักในหน้าเดียวกัน */
+.btn-danger { background: transparent; color: var(--down); border-color: color-mix(in srgb, var(--down) 30%, transparent); }
+.btn-danger:hover:not(:disabled) { background: var(--down-wash); border-color: var(--down); }
+
+/* ---- ช่องกรอก ---- */
+.field {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 9px 12px;
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--ink);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.field::placeholder { color: var(--ink-faint); }
+.field:focus {
+  outline: none;
+  border-color: var(--jade);
+  box-shadow: 0 0 0 3px var(--jade-wash);
+}
+select.field { cursor: pointer; }
+
+/* ---- ตาราง ---- */
+.tbl { width: 100%; border-collapse: collapse; }
+.tbl thead th {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 500;
+  text-align: left;
+  padding: 11px 16px;
+  background: var(--sunk);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.tbl tbody td {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+  vertical-align: middle;
+}
+.tbl tbody tr:last-child td { border-bottom: none; }
+.tbl tbody tr { transition: background-color .12s ease; }
+.tbl tbody tr:hover { background: var(--sunk); }
+.tbl .r { text-align: right; }
+
+/* ---- โฟกัสที่มองเห็นได้ (เข้าถึงง่าย) ---- */
+:focus-visible { outline: 2px solid var(--jade); outline-offset: 2px; border-radius: 3px; }
+
+/* ---- แถบเลื่อน ---- */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--paper); }
+::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 5px; border: 2px solid var(--paper); }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-faint); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

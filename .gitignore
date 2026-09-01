@@ -1,0 +1,13 @@
+# ติดตั้งใหม่ได้จาก package-lock.json — ไม่ต้องเก็บ
+node_modules/
+
+# ผลจากการ build สร้างใหม่ได้ตลอด
+backend/dist/
+frontend/dist/
+
+# ความลับจริงอยู่แต่บนเซิร์ฟเวอร์เท่านั้น ในนี้เก็บได้แค่แม่แบบ
+.env
+.env.*
+!.env.example
+
+*.log

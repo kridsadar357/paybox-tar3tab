@@ -1,0 +1,10 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "oxc"],
+  "ignorePatterns": ["dist", "node_modules"],
+  "rules": {
+    "no-unused-vars": "warn",
+    "typescript/no-floating-promises": "off",
+    "no-console": "off"
+  }
+}

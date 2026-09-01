@@ -1,0 +1,8 @@
+# build context คือรากของ repo ตัดของที่ image ไม่ต้องใช้ออกเพื่อให้ context เล็กและ build เร็ว
+**/node_modules
+**/dist
+.git
+docs
+ops
+*.md
+*.log

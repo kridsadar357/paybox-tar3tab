@@ -1,0 +1,18 @@
+#!/bin/sh
+# ตรวจก่อน push — ไม่ให้โค้ดที่ lint ไม่ผ่าน typecheck ไม่ผ่าน หรือเทสต์แดง ออกจากเครื่องไป
+#
+# ติดตั้ง: ln -s ../../ops/hooks/pre-push .git/hooks/pre-push   (จากรากของ repo)
+#
+# ตัวนี้เป็นแค่ด่านแรกที่ให้ผลเร็ว ด่านจริงที่บังคับได้อยู่ใน Dockerfile ซึ่งจะ build ไม่ผ่าน
+# ถ้าเทสต์แดง — hook เลี่ยงได้ด้วย --no-verify แต่ image เลี่ยงไม่ได้
+set -eu
+
+fail() { echo "pre-push: $* — ยกเลิกการ push"; exit 1; }
+
+echo "pre-push: ตรวจ backend"
+( cd backend && npm run lint --silent && npx tsc --noEmit && npx vitest run --silent ) || fail "backend ไม่ผ่าน"
+
+echo "pre-push: ตรวจ frontend"
+( cd frontend && npm run lint --silent && npx tsc --noEmit -p tsconfig.app.json ) || fail "frontend ไม่ผ่าน"
+
+echo "pre-push: ผ่านทั้งหมด"

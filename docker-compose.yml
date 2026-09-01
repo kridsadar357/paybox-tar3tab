@@ -1,0 +1,93 @@
+# Deploy บน VPS ที่มี Traefik รันอยู่แล้ว (ดูจริงจาก `docker ps` บนเครื่อง $PAYBOX_HOST) —
+# ออกแบบให้ไม่ชนกับ แอปอื่นกับ traefik ที่รันอยู่:
+#   - MySQL ของเราอยู่บน network แยกของตัวเอง (paybox-net) ไม่แตะ network หรือฐานข้อมูลของแอปอื่น เลย
+#   - ไม่ publish port ออก host เลยแม้แต่พอร์ตเดียว — Traefik คุยกับ backend ผ่าน network "web"
+#     (network เดิมที่ traefik สร้างไว้ใช้ร่วมกับแอปอื่นอยู่แล้ว) โดยอ้างชื่อ container ตรงๆ
+#   - เลือกด้วย label (`traefik.enable=true`) เท่านั้น เพราะ traefik ตั้ง
+#     `--providers.docker.exposedbydefault=false` ไว้ — container อื่นที่ไม่ติด label นี้จะไม่ถูก
+#     Traefik แตะต้องเลย (ปลอดภัยต่อ services เดิมโดยดีไซน์ ไม่ใช่แค่ตั้งใจเว้นไว้)
+#   - cert ออกอัตโนมัติผ่าน certresolver "le" (HTTP-01 challenge บน port 80) ตัวเดียวกับที่แอปอื่นบนเครื่อง
+#     ใช้อยู่ — ไม่ต้องตั้ง TLS เพิ่มเอง แค่ DNS ของ orca-paybox.com ต้องชี้มาที่เครื่องนี้ก่อน
+
+# ปักชื่อ project ไว้ตายตัว ห้ามลบทิ้ง
+#
+# ถ้าไม่ตั้ง compose จะเอาชื่อโฟลเดอร์ที่รันมาเป็นชื่อ project แล้วเอาไปเป็น prefix ของ volume
+# ทุกตัว ย้ายโฟลเดอร์เมื่อไหร่ volume จะเปลี่ยนชื่อตาม แล้ว compose จะสร้าง volume เปล่าใหม่ให้
+# โดยไม่เตือนอะไรเลย — ฐานข้อมูลทั้งก้อนจะดูเหมือนถูกล้างทิ้ง ทั้งที่ของเดิมยังอยู่ครบแค่ไม่มีใคร
+# ชี้ไปหามัน ค่านี้คือชื่อเดิมตั้งแต่ตอนที่ compose อยู่ในโฟลเดอร์ paybox-backend
+name: paybox-backend
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: paybox-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-paybox}
+    volumes:
+      - paybox-mysql-data:/var/lib/mysql
+    networks:
+      - paybox-net
+    # ไม่ expose port ออก host — ถ้าต้องต่อจากนอกเครื่องเพื่อ import dump ให้ใช้
+    # `docker exec -i paybox-mysql mysql ...` หรือ SSH tunnel ชั่วคราวแทน ไม่ผูก port ถาวรไว้ที่นี่
+
+  backend:
+    build:
+      # context คือรากของ repo นี้ ทั้ง frontend/ และ backend/ อยู่ในนั้นแล้ว
+      # ไม่ต้องพึ่งว่าใครวางโฟลเดอร์อะไรไว้ตรงไหนบนเซิร์ฟเวอร์
+      context: .
+      dockerfile: Dockerfile
+    container_name: paybox-backend
+    restart: unless-stopped
+    depends_on:
+      - mysql
+    environment:
+      PORT: 3001
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      # ไม่มีค่าเริ่มต้นให้โดยตั้งใจ — ถ้าหายไป webhook จะตอบ 503 กลับหา Stripe ทุกครั้ง
+      # และรายการที่จ่ายสำเร็จจะไม่ถูกอัปเดตจนกว่า reconciler จะไปตามเก็บ
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      PAYBOX_MAX_AMOUNT: ${PAYBOX_MAX_AMOUNT:-100000}
+      PAYBOX_CURRENCY: ${PAYBOX_CURRENCY:-thb}
+      PAYBOX_BILLING_EMAIL: ${PAYBOX_BILLING_EMAIL:-guest@orca-paybox.com}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://orca-paybox.com}
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-paybox_app}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_NAME:-paybox}
+      UPLOADS_DIR: /app/uploads
+    volumes:
+      - paybox-uploads:/app/uploads
+      # credential ของช่องทางแจ้งเตือน — backend เขียน, cron บน host อ่านไปใช้
+      # ต้องเป็น bind mount ไม่ใช่ named volume เพราะ cron อยู่นอก docker และต้องเห็นไฟล์เดียวกัน
+      - /opt/paybox/alerts:/app/alerts
+      # สถานะที่ cron เขียนไว้ อ่านอย่างเดียวพอ ใช้แสดงในหน้าเว็บว่าตัวเฝ้าระวังยังเดินอยู่ไหม
+      - /opt/paybox/state:/app/alert-state:ro
+    networks:
+      - paybox-net
+      - web
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "web"
+      traefik.http.routers.paybox.rule: "Host(`orca-paybox.com`) || Host(`www.orca-paybox.com`)"
+      traefik.http.routers.paybox.entrypoints: "websecure"
+      traefik.http.routers.paybox.tls.certresolver: "le"
+      traefik.http.services.paybox.loadbalancer.server.port: "3001"
+      # www -> apex redirect ตามแพทเทิร์น middleware ปกติของ Traefik
+      traefik.http.middlewares.paybox-www.redirectregex.regex: "^https://www\\.orca-paybox\\.com/(.*)"
+      traefik.http.middlewares.paybox-www.redirectregex.replacement: "https://orca-paybox.com/$${1}"
+      traefik.http.middlewares.paybox-www.redirectregex.permanent: "true"
+      traefik.http.routers.paybox.middlewares: "paybox-www"
+
+networks:
+  paybox-net:
+    name: paybox-net
+  web:
+    external: true
+
+volumes:
+  paybox-mysql-data:
+  paybox-uploads:

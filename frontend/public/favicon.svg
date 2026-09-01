@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="PayBox">
+  <!-- ตัวเครื่องรับชำระเงิน -->
+  <rect width="64" height="64" rx="14" fill="#0F766E"/>
+  <!-- ลาย QR สามมุม อ่านออกตั้งแต่ขนาด 16px ว่าเป็นการจ่ายด้วยการสแกน -->
+  <g fill="#fff">
+    <path d="M14 14h16v16H14V14zm4 4v8h8v-8h-8z"/>
+    <path d="M34 14h16v16H34V14zm4 4v8h8v-8h-8z"/>
+    <path d="M14 34h16v16H14V34zm4 4v8h8v-8h-8z"/>
+    <rect x="36" y="36" width="5" height="5" rx="1"/>
+    <rect x="45" y="36" width="5" height="5" rx="1"/>
+    <rect x="36" y="45" width="5" height="5" rx="1"/>
+    <rect x="45" y="45" width="5" height="5" rx="1"/>
+  </g>
+</svg>

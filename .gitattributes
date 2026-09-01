@@ -1,0 +1,14 @@
+# ทุกอย่างในโปรเจกต์นี้ไปจบที่ Linux (คอนเทนเนอร์ + cron บน VPS) จึงบังคับ LF ทั้งหมด
+# ถ้าปล่อยตาม core.autocrlf ของ Windows ไฟล์ .sh จะได้ CRLF แล้ว shebang จะพังแบบหาสาเหตุยาก
+* text=auto eol=lf
+
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+
+*.wav binary
+*.png binary
+*.jpg binary
+*.woff binary
+*.woff2 binary
+*.bin binary

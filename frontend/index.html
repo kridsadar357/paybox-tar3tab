@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <title>PayBox — ระบบรับชำระเงินพร้อมเพย์</title>
+    <meta name="description" content="ระบบจัดการเครื่องรับชำระเงิน PayBox — ดูยอดขาย จัดการอุปกรณ์ และติดตามการโอนเงินให้ร้านค้า" />
+
+    <!-- พอร์ทัลนี้อยู่หลังการเข้าสู่ระบบทั้งหมด การให้ search engine เก็บ index หน้า login
+         ไม่ได้ประโยชน์ใดๆ และเปิดเผยโครงสร้างระบบโดยไม่จำเป็น -->
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+
+    <meta name="theme-color" content="#0F766E" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0C1011" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
+
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.svg" />
+    <meta name="apple-mobile-web-app-title" content="PayBox" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="PayBox" />
+    <meta property="og:title" content="PayBox — ระบบรับชำระเงินพร้อมเพย์" />
+    <meta property="og:description" content="ดูยอดขาย จัดการอุปกรณ์ และติดตามการโอนเงินให้ร้านค้า" />
+    <meta property="og:locale" content="th_TH" />
+
+    <!-- กันจอกะพริบเป็นสีขาวก่อน CSS หลักโหลดเสร็จ: ทาสีพื้นให้ตรงกับธีมตั้งแต่ HTML
+         ค่าเดียวกับ --paper ใน index.css ทั้งโหมดสว่างและมืด -->
+    <style>
+      html { background: #FCFCFA; }
+      @media (prefers-color-scheme: dark) {
+        html:not([data-theme="light"]) { background: #0C1011; }
+      }
+      html[data-theme="dark"] { background: #0C1011; }
+      html[data-theme="light"] { background: #FCFCFA; }
+      /* ตัวคั่นระหว่างรอ JS ก้อนแรก — ไม่ให้หน้าว่างเปล่าสนิท */
+      #root:empty::after {
+        content: "";
+        position: fixed; inset: 0;
+        background: inherit;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>ต้องเปิดใช้งาน JavaScript เพื่อใช้ระบบนี้</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

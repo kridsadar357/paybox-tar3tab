@@ -1,0 +1,45 @@
+{
+  "name": "paybox-backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "compression": "^1.8.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.6.2",
+    "helmet": "^8.3.0",
+    "multer": "^2.2.0",
+    "mysql2": "^3.23.2",
+    "otplib": "^13.4.1",
+    "qrcode": "^1.5.4",
+    "sharp": "^0.35.3"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/compression": "^1.8.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.2.0",
+    "@types/node": "^26.2.0",
+    "@types/qrcode": "^1.5.6",
+    "oxlint": "^1.80.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
+}

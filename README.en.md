@@ -51,6 +51,10 @@ administrative action that touches money or access.
 HMAC verification of Stripe and LINE webhooks with replay protection, and secrets kept out
 of the repository entirely.
 
+## Setting it up
+
+See [SETUP.md](SETUP.md) for a walkthrough from a bare server to a working terminal (Thai).
+
 ## Getting started
 
 ```sh

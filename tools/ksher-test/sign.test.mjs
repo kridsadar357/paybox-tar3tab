@@ -1,7 +1,11 @@
 // พิสูจน์ว่าการเซ็นลายเซ็นถูกต้องตามเอกสาร โดยไม่ต้องมีบัญชี Ksher จริง
 //   node tools/ksher-test/sign.test.mjs
 import crypto from 'crypto';
-import { buildSignString, sign, verify, timeStamp, nonce, baht } from './ksherSign.mjs';
+import { readFileSync, existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import { buildSignString, sign, verify, verifyResponse, timeStamp, nonce, baht } from './ksherSign.mjs';
+const HERE = dirname(fileURLToPath(import.meta.url));
 
 let fail = 0;
 const ok = (name, cond) => { console.log((cond ? '  ผ่าน  ' : '  ไม่ผ่าน ') + name); if (!cond) fail++; };
@@ -21,8 +25,10 @@ ok('เรียงตาม ASCII (version อยู่ท้าย)', s.endsWi
 ok('ต่อกันโดยไม่มีตัวคั่น', s.startsWith('appid=mch20163channel=wechat'));
 ok('ไม่มีเครื่องหมาย & หรือ ,', !s.includes('&') && !s.includes(','));
 
-// ค่าว่างต้องไม่เข้าไปในลายเซ็น
-ok('ตัดค่าว่างออก', buildSignString({ a: '1', b: '', c: null, d: undefined }) === 'a=1');
+// ค่าว่างยังอยู่ในลายเซ็น ตามที่ SDK ทางการทำ — ตัดออกเฉพาะ null/undefined ที่ไม่ได้ส่งจริง
+// (เดิมผมตัดค่าว่างทิ้งด้วย ซึ่งไม่ตรงกับ SDK)
+ok('เก็บค่าว่าง ตัดเฉพาะที่ไม่มีค่า', buildSignString({ a: '1', b: '', c: null, d: undefined }) === 'a=1b=');
+ok('อ็อบเจกต์ถูกแปลงเป็น JSON ไม่เว้นวรรค', buildSignString({ z: { k: 1 } }) === 'z={"k":1}');
 
 // เซ็นแล้วตรวจกลับได้ ด้วยคู่กุญแจที่สร้างขึ้นเอง
 const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
@@ -49,6 +55,25 @@ ok('ทศนิยมเกินสองตำแหน่งให้ผล�
 ok('time_stamp เป็น yyyyMMddHHmmss', /^\d{14}$/.test(timeStamp(new Date(2026, 8, 4, 19, 5, 3))));
 ok('time_stamp เติมศูนย์หน้า', timeStamp(new Date(2026, 0, 2, 3, 4, 5)) === '20260102030405');
 ok('nonce ยาว 32 และไม่ซ้ำ', nonce().length === 32 && nonce() !== nonce());
+
+
+// ตรวจลายเซ็นของคำตอบจาก Ksher — จุดที่เคยทำผิดมาแล้ว
+// ลายเซ็นครอบแค่ก้อน data ข้างใน ไม่ใช่ทั้ง response ถ้าเอาทั้งก้อนไปตรวจจะไม่ผ่านเสมอ
+//
+// ไฟล์ตัวอย่างไม่ได้อยู่ใน git เพราะ payload ของ QR มี Biller ID ซึ่งมีเลขผู้เสียภาษีของร้าน
+// อยู่ข้างใน สร้างเองได้ด้วยการยิงหนึ่งครั้งแล้วเซฟ body ที่ได้ลง sample_response.json
+const samplePath = join(HERE, 'sample_response.json');
+const pub = readFileSync(join(HERE, 'ksher_pubkey.pem'), 'utf8');
+if (!existsSync(samplePath)) {
+  console.log('  ข้าม   ตรวจลายเซ็นคำตอบจริง (ยังไม่มี sample_response.json)');
+} else {
+  const real = JSON.parse(readFileSync(samplePath, 'utf8'));
+  ok('ตรวจลายเซ็นคำตอบจริงของ Ksher ผ่าน', verifyResponse(real, pub) === true);
+  ok('แก้ยอดเงินในคำตอบแล้วลายเซ็นต้องไม่ผ่าน',
+    verifyResponse({ ...real, data: { ...real.data, total_fee: 999999 } }, pub) === false);
+  ok('เอาทั้ง response ไปตรวจต้องไม่ผ่าน (ที่ถูกคือตรวจแค่ data)',
+    verify(real, real.sign, pub) === false);
+}
 
 console.log(fail === 0 ? '\nผ่านทั้งหมด' : `\nไม่ผ่าน ${fail} ข้อ`);
 process.exit(fail ? 1 : 0);

@@ -10,7 +10,7 @@ import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { sign, verify, timeStamp, nonce, baht, buildSignString } from './ksherSign.mjs';
+import { sign, verifyResponse, timeStamp, nonce, baht, buildSignString } from './ksherSign.mjs';
 
 const DIR = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 8788);
@@ -39,7 +39,15 @@ function readLocalEnv() {
 
 const LOCAL = readLocalEnv();
 const PRIVATE_KEY = process.env.KSHER_PRIVATE_KEY || LOCAL.KSHER_PRIVATE_KEY || '';
-const PUBLIC_KEY = process.env.KSHER_PUBLIC_KEY || LOCAL.KSHER_PUBLIC_KEY || '';
+// กุญแจสาธารณะของ Ksher เป็นค่าเดียวกันทุกร้านค้า แจกมาพร้อม SDK ทางการ (@kshersolution/ksher)
+// merchant ไม่ต้องไปหามาเอง จึงเก็บไว้ในโฟลเดอร์นี้เลย
+const PUBLIC_KEY = (() => {
+  try {
+    return readFileSync(join(DIR, 'ksher_pubkey.pem'), 'utf8');
+  } catch {
+    return process.env.KSHER_PUBLIC_KEY || LOCAL.KSHER_PUBLIC_KEY || '';
+  }
+})();
 const DEFAULTS = {
   appid: process.env.KSHER_APPID || LOCAL.KSHER_APPID || '',
   hasPrivateKey: Boolean(PRIVATE_KEY),
@@ -92,11 +100,10 @@ async function createQr(p) {
     parsed = { _parseError: 'ตอบกลับมาไม่ใช่ JSON', _raw: raw.slice(0, 800) };
   }
 
-  // ตรวจลายเซ็นที่ Ksher ส่งกลับมา ถ้ามีกุญแจสาธารณะให้ใช้
+  // ลายเซ็นครอบแค่ก้อน data ข้างใน ไม่ใช่ทั้ง response
   let signOk = null;
-  if (PUBLIC_KEY && parsed && parsed.sign) {
-    const { sign: _s, ...rest } = parsed;
-    signOk = verify(rest, parsed.sign, PUBLIC_KEY);
+  if (PUBLIC_KEY && parsed && parsed.sign && parsed.data) {
+    signOk = verifyResponse(parsed, PUBLIC_KEY);
   }
 
   return {

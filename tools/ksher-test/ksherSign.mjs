@@ -14,11 +14,17 @@ import crypto from 'crypto';
  * ถ้าใส่เข้าไปแล้วฝั่ง Ksher ไม่ได้ใส่ ลายเซ็นจะไม่ตรงกันทันที
  */
 export function buildSignString(params) {
-  return Object.keys(params)
-    .filter((k) => k !== 'sign' && params[k] !== undefined && params[k] !== null && params[k] !== '')
-    .sort()
-    .map((k) => `${k}=${params[k]}`)
-    .join('');
+  const list = [];
+  for (const k of Object.keys(params).sort()) {
+    if (k === 'sign') continue;
+    const v = params[k];
+    if (v === undefined || v === null) continue;
+    // ค่าที่ไม่ใช่ข้อความหรือตัวเลขถูกแปลงเป็น JSON แบบไม่เว้นวรรค ตามที่ SDK ทางการทำ
+    list.push(k + '=' + (typeof v === 'string' || typeof v === 'number' ? v : JSON.stringify(v)));
+  }
+  // เรียงอีกรอบที่ระดับสตริง ไม่ใช่แค่ที่ระดับชื่อคีย์ — SDK ทำสองชั้นแบบนี้
+  list.sort();
+  return list.join('');
 }
 
 /** เซ็นด้วยกุญแจส่วนตัวของร้านค้า ได้ผลเป็นเลขฐานสิบหก */
@@ -29,7 +35,18 @@ export function sign(params, privateKeyPem) {
   return signer.sign(privateKeyPem, 'hex');
 }
 
-/** ตรวจลายเซ็นที่ Ksher ส่งกลับมา ด้วยกุญแจสาธารณะของ Ksher */
+/**
+ * ตรวจลายเซ็นของคำตอบจาก Ksher
+ *
+ * จุดที่พลาดง่าย: ลายเซ็นครอบแค่ก้อน data ข้างใน ไม่ใช่ทั้ง response —
+ * ถ้าเอาทั้งก้อนไปตรวจจะไม่ผ่านเสมอ ยืนยันกับคำตอบจริงแล้วว่าเป็นแบบนี้
+ */
+export function verifyResponse(response, publicKeyPem) {
+  if (!response || !response.sign || !response.data) return false;
+  return verify(response.data, response.sign, publicKeyPem);
+}
+
+/** ตรวจลายเซ็นของอ็อบเจกต์ใดๆ ด้วยกุญแจสาธารณะ */
 export function verify(params, signatureHex, publicKeyPem) {
   const verifier = crypto.createVerify('RSA-MD5');
   verifier.update(buildSignString(params), 'utf8');

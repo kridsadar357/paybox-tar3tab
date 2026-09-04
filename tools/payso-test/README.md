@@ -69,9 +69,32 @@ PAYSO_MERCHANT_ID=12345678 PAYSO_TOKEN=xxxx node tools/payso-test/server.mjs
 
 ลองหา endpoint ที่ออก token ด้วย (`/tep/api/v*/token`, `/authen`, `/auth/token`) ได้ 404 ทุกอัน
 
-**ข้อสรุป:** Bearer token ของ PromptPay API เป็นคีย์คนละตัวกับ Secret Key และ API Key
-ต้องขอจาก Payso แยกต่างหาก ซึ่งตรงกับที่เอกสารมีหัวข้อ "Authorizations → Auth Key" ค้างไว้
-แต่ไม่ได้เขียนเนื้อหา
+**ข้อสรุปเดิม (ยืนยันแล้วว่าถูก):** Bearer token เป็นคีย์คนละตัวกับ Secret Key และ API Key
 
-พอได้คีย์มาแล้วใส่ในช่อง Auth key บนหน้าเว็บได้เลย ถ้า Payso บอกว่าใช้รูปแบบอื่น
-ก็สลับตัวเลือก "รูปแบบ auth" ได้โดยไม่ต้องแก้โค้ด
+## คำตอบ: Auth Key อยู่ในหลังบ้าน
+
+Merchant Settings > Merchant Details > พารามิเตอร์คีย์ มีสามช่อง — Secret Key, API Key
+และ **Auth Key** ช่องที่สามนี้คือตัวที่ใช้เป็น Bearer token ของ PromptPay API
+
+ต่างจากอีกสองช่องตรงที่ไม่มีไอคอนรูปตาให้กดเปิดดู เพราะถ้ายังไม่ถูกออกให้ก็จะว่างเปล่า
+ต้องติดต่อ Payso ให้ออกให้ (support@paysolutions.asia หรือ LINE @payso)
+
+Auth Key เป็น JWT ลงนามด้วย RS256 ข้างในมี `sub` เป็นเลข 5 หลักท้ายของ MerchantID
+และอายุยาวประมาณ 50 ปี — **ถือเป็นความลับระดับเดียวกับรหัสผ่าน ห้ามให้หลุด**
+
+### ยืนยันว่าใช้ได้จริง
+
+| ส่งอะไรไป | ได้อะไรกลับ |
+|---|---|
+| Bearer + token ปลอม | `{"message":"authorization error"}` |
+| Bearer + Auth Key จริง | `{"message":"error : the shop is not open yet. Please contact the store."}` |
+
+ข้อความที่ต่างกันพิสูจน์ว่า auth ผ่านแล้ว ที่ค้างอยู่เป็นเรื่องสถานะร้านค้าไม่ใช่เรื่องสิทธิ์
+ทดสอบทั้งยอด 6 บาทและ 100 บาทได้ผลเหมือนกัน จำนวนเงินจึงไม่เกี่ยว
+
+### ที่ต้องทำต่อ
+
+"the shop is not open yet" แปลว่าบัญชีร้านค้ายังไม่ได้เปิดใช้บริการ QR/PromptPay
+ต้องให้ Payso เปิดให้ก่อน หรือขอ Terminal ID ที่ Merchant Settings > TID
+เมื่อเปิดแล้วหน้าเทสต์นี้จะสร้าง QR ได้ทันทีโดยไม่ต้องแก้อะไร
+

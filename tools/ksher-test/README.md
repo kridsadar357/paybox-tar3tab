@@ -48,17 +48,14 @@ KSHER_APPID=mch20163
 KSHER_PRIVATE_KEY=-----BEGIN RSA PRIVATE KEY-----
 MIIEow...
 -----END RSA PRIVATE KEY-----
-KSHER_PUBLIC_KEY=-----BEGIN RSA PUBLIC KEY-----
-MIIBCg...
------END RSA PUBLIC KEY-----
 ```
 
 กุญแจแบบ PEM กินหลายบรรทัดได้ ตัวอ่านไฟล์ต่อบรรทัดถัดไปเข้ากับคีย์ล่าสุดให้เอง
 
-ทั้งสามค่าเอามาจากหลังบ้านของ Ksher — appid อยู่ในหน้า Merchant No. ส่วนกุญแจดาวน์โหลดได้
-จากหน้า Download Private key / Public key **ไม่มี credential ทดสอบแบบสาธารณะ** ต้องสมัครบัญชีก่อน
+ทั้งสองค่าเอามาจากหลังบ้านของ Ksher — appid อยู่ในหน้า Merchant No. ส่วนกุญแจส่วนตัวดาวน์โหลด
+ได้จากหน้า Download Private key **ไม่มี credential ทดสอบแบบสาธารณะ** ต้องสมัครบัญชีก่อน
 
-`KSHER_PUBLIC_KEY` ไม่ใส่ก็สร้าง QR ได้ แต่จะไม่ได้ตรวจว่าคำตอบที่กลับมาเป็นของ Ksher จริง
+กุญแจสาธารณะของ Ksher ไม่ต้องหา มาพร้อมโปรเจกต์นี้แล้วที่ `ksher_pubkey.pem` — ดูเหตุผลด้านล่าง
 
 ## เทียบกับ Payso
 

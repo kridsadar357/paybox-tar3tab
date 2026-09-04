@@ -63,6 +63,7 @@ export const ksherProvider: PaymentProvider = {
       total_fee: toSatang(amountBaht),
       version: '2.0.0',
     };
+    if (config.ksherExpireSeconds > 0) params.expire_time = config.ksherExpireSeconds;
 
     const { httpCode, body } = await post(CREATE_URL, params, config.ksher.privateKey);
     if (body?.code !== 0 || !body?.data?.code_url) {

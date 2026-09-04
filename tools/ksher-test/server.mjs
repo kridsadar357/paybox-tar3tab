@@ -15,6 +15,7 @@ import { sign, verifyResponse, timeStamp, nonce, baht, buildSignString } from '.
 const DIR = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 8788);
 const ENDPOINT = 'https://api.mch.ksher.net/KsherPay/native_pay';
+const QUERY_ENDPOINT = 'https://api.mch.ksher.net/KsherPay/order_query';
 
 function readLocalEnv() {
   // .env.local ถูก .gitignore กันไว้ — ห้ามเอากุญแจจริงใส่ไฟล์ที่ commit
@@ -116,6 +117,34 @@ async function createQr(p) {
   };
 }
 
+async function queryOrder(p) {
+  const params = {
+    appid: p.appid,
+    channel: p.channel,
+    mch_order_no: p.mch_order_no,
+    nonce_str: nonce(),
+    time_stamp: timeStamp(),
+    version: '2.0.0',
+  };
+  const body = new URLSearchParams({ ...params, sign: sign(params, PRIVATE_KEY) });
+  const res = await fetch(QUERY_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+    signal: AbortSignal.timeout(20000),
+  });
+  const raw = await res.text();
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = { _parseError: 'ตอบกลับมาไม่ใช่ JSON', _raw: raw.slice(0, 400) };
+  }
+  let signOk = null;
+  if (PUBLIC_KEY && parsed && parsed.sign && parsed.data) signOk = verifyResponse(parsed, PUBLIC_KEY);
+  return { httpStatus: res.status, responseSignatureValid: signOk, body: parsed };
+}
+
 const server = createServer(async (req, res) => {
   const json = (code, obj) => {
     res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -144,6 +173,24 @@ const server = createServer(async (req, res) => {
     } catch (err) {
       const why = err?.name === 'TimeoutError' ? 'หมดเวลารอ 25 วินาที' : String(err?.message || err);
       return json(502, { errors: [`ติดต่อ Ksher ไม่ได้: ${why}`] });
+    }
+  }
+
+  if (req.method === 'POST' && req.url === '/query') {
+    let raw = '';
+    for await (const chunk of req) raw += chunk;
+    let p;
+    try {
+      p = JSON.parse(raw);
+    } catch {
+      return json(400, { errors: ['ส่งข้อมูลมาไม่ถูกรูปแบบ'] });
+    }
+    if (!PRIVATE_KEY) return json(400, { errors: ['ยังไม่ได้ใส่กุญแจส่วนตัว'] });
+    if (!p.mch_order_no) return json(400, { errors: ['ไม่มีเลขที่สั่งซื้อให้ถาม'] });
+    try {
+      return json(200, await queryOrder(p));
+    } catch (err) {
+      return json(502, { errors: ['ถามสถานะไม่สำเร็จ: ' + String(err?.message || err)] });
     }
   }
 

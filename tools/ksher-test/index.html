@@ -3,102 +3,101 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ทดสอบ Ksher Native Pay</title>
+<title>สร้าง QR รับเงิน — Ksher</title>
 <style>
-  :root{--paper:#f6f7f9;--surface:#fff;--ink:#141a2e;--soft:#4b5268;--faint:#868da0;
-        --line:#e0e4eb;--jade:#0f766e;--loss:#a8251c;--sunk:#edeff3}
-  @media (prefers-color-scheme:dark){:root{--paper:#0e1116;--surface:#161a21;--ink:#e9ebf0;
-        --soft:#a6adbc;--faint:#6f7787;--line:#262c37;--jade:#45c4b2;--loss:#f27866;--sunk:#1b2029}}
+  :root{--paper:#f4f6f8;--surface:#fff;--ink:#111827;--soft:#4b5563;--faint:#9099a6;
+        --line:#dfe4ea;--jade:#0f766e;--jade-soft:#e6f2f0;--loss:#a8251c;--wait:#8a6212;--sunk:#eef1f4}
+  @media (prefers-color-scheme:dark){:root{--paper:#0d1014;--surface:#161a20;--ink:#e8ebef;
+        --soft:#a3abb8;--faint:#6b7280;--line:#252b34;--jade:#45c4b2;--jade-soft:#0f2f2b;
+        --loss:#f27866;--wait:#d9a441;--sunk:#1a1f26}}
   *{box-sizing:border-box}
-  body{margin:0;background:var(--paper);color:var(--ink);line-height:1.7;
+  body{margin:0;background:var(--paper);color:var(--ink);line-height:1.65;
        font-family:"IBM Plex Sans Thai","Noto Sans Thai","Leelawadee UI",system-ui,sans-serif}
-  .wrap{max-width:58rem;margin:0 auto;padding:2rem 1.25rem 4rem;display:flex;flex-direction:column;gap:1.5rem}
-  h1{font-size:1.5rem;margin:0;letter-spacing:-.02em}
-  .sub{color:var(--soft);font-size:.92rem;margin:0}
-  .grid{display:grid;grid-template-columns:1fr;gap:1.25rem}
-  @media(min-width:54rem){.grid{grid-template-columns:1fr 1fr}}
-  .card{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:1.25rem;
-        display:flex;flex-direction:column;gap:.9rem}
-  label{display:flex;flex-direction:column;gap:.3rem;font-size:.85rem;color:var(--soft)}
-  input,select{font:inherit;font-size:.92rem;padding:.5rem .65rem;border:1px solid var(--line);
-        border-radius:3px;background:var(--paper);color:var(--ink)}
+  .wrap{max-width:40rem;margin:0 auto;padding:2rem 1.25rem 4rem;display:flex;flex-direction:column;gap:1.5rem}
+  h1{font-size:1.35rem;margin:0;letter-spacing:-.02em}
+  .sub{color:var(--soft);font-size:.9rem;margin:0}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:1.4rem;
+        display:flex;flex-direction:column;gap:1rem}
+  label{display:flex;flex-direction:column;gap:.35rem;font-size:.85rem;color:var(--soft)}
+  input,select{font:inherit;padding:.6rem .75rem;border:1px solid var(--line);border-radius:4px;
+        background:var(--paper);color:var(--ink)}
+  #amount{font-size:1.6rem;font-weight:600;text-align:center;font-variant-numeric:tabular-nums}
   input:focus,select:focus{outline:2px solid var(--jade);outline-offset:1px}
-  .row{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
-  button{font:inherit;font-weight:600;padding:.6rem 1rem;border-radius:3px;border:1px solid transparent;
-        background:var(--jade);color:#fff;cursor:pointer}
-  button:disabled{opacity:.5;cursor:not-allowed}
-  button.ghost{background:transparent;color:var(--soft);border-color:var(--line)}
-  pre{background:var(--sunk);border:1px solid var(--line);border-radius:3px;padding:.75rem;overflow:auto;
-      font-size:.76rem;margin:0;max-height:20rem;font-family:"IBM Plex Mono",ui-monospace,monospace}
-  .qr{display:flex;flex-direction:column;align-items:center;gap:.6rem;padding:1rem;background:#fff;border-radius:4px}
-  .qr img{width:260px;height:260px}
-  .err{color:var(--loss);font-size:.88rem;background:color-mix(in srgb,var(--loss) 10%,transparent);
-       padding:.6rem .8rem;border-radius:3px}
-  .ok{color:var(--jade);font-weight:600;font-size:.9rem}
-  .meta{font-size:.8rem;color:var(--faint);display:flex;flex-direction:column;gap:.2rem;
+  button{font:inherit;font-weight:600;padding:.75rem 1rem;border-radius:4px;border:1px solid transparent;
+        background:var(--jade);color:#fff;cursor:pointer;font-size:1rem}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.ghost{background:transparent;color:var(--soft);border-color:var(--line);font-size:.88rem;padding:.5rem .9rem}
+  .qrbox{display:flex;flex-direction:column;align-items:center;gap:.9rem;padding:1.5rem 1rem;
+        background:#fff;border-radius:6px;border:1px solid var(--line)}
+  .qrbox img{width:300px;height:300px;max-width:100%;display:block}
+  .amt{font-size:1.9rem;font-weight:700;font-variant-numeric:tabular-nums;color:#111827}
+  .status{display:flex;align-items:center;gap:.5rem;font-weight:600;font-size:1rem;padding:.6rem 1rem;
+        border-radius:4px;justify-content:center}
+  .st-wait{color:var(--wait);background:color-mix(in srgb,var(--wait) 12%,transparent)}
+  .st-ok{color:var(--jade);background:var(--jade-soft)}
+  .st-bad{color:var(--loss);background:color-mix(in srgb,var(--loss) 12%,transparent)}
+  .dot{width:.55rem;height:.55rem;border-radius:50%;background:currentColor;animation:p 1.4s ease-in-out infinite}
+  @keyframes p{0%,100%{opacity:.35}50%{opacity:1}}
+  @media (prefers-reduced-motion:reduce){.dot{animation:none}}
+  .meta{font-size:.78rem;color:var(--faint);display:flex;flex-direction:column;gap:.15rem;
         font-family:"IBM Plex Mono",ui-monospace,monospace;word-break:break-all}
-  .hint{font-size:.78rem;color:var(--faint)}
+  .err{color:var(--loss);font-size:.88rem;background:color-mix(in srgb,var(--loss) 10%,transparent);
+       padding:.7rem .9rem;border-radius:4px}
+  details{font-size:.85rem;color:var(--soft)}
+  summary{cursor:pointer;padding:.3rem 0}
+  .adv{display:flex;flex-direction:column;gap:.7rem;padding-top:.6rem}
+  pre{background:var(--sunk);border:1px solid var(--line);border-radius:4px;padding:.7rem;overflow:auto;
+      font-size:.72rem;margin:0;max-height:16rem;font-family:"IBM Plex Mono",ui-monospace,monospace}
   .warn{color:var(--loss);font-size:.85rem}
+  .row{display:flex;gap:.6rem;flex-wrap:wrap}
+  .row>*{flex:1}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div>
-    <h1>ทดสอบสร้าง QR ผ่าน Ksher</h1>
-    <p class="sub">Native Pay (C scan B) — ยิงผ่านเซิร์ฟเวอร์ในเครื่อง ไม่แตะระบบจริง</p>
-    <p class="warn" id="nokey" hidden>ยังไม่มีกุญแจส่วนตัวใน .env.local — สร้าง QR ไม่ได้จนกว่าจะใส่</p>
+    <h1>สร้าง QR รับเงิน</h1>
+    <p class="sub">PromptPay ผ่าน Ksher · สแกนแล้วระบบจะเช็คให้เองว่าเงินเข้าหรือยัง</p>
+    <p class="warn" id="nokey" hidden>ยังไม่มีกุญแจส่วนตัวใน .env.local</p>
   </div>
 
-  <div class="grid">
-    <form class="card" id="f">
-      <label>appid <span class="hint">รูปแบบ mch ตามด้วยตัวเลข</span>
-        <input id="appid" placeholder="mch20163" required>
-      </label>
-      <div class="row">
-        <label>จำนวนเงิน (บาท) <span class="hint">ส่งเป็นสตางค์ให้อัตโนมัติ</span>
-          <input id="amountBaht" inputmode="decimal" value="10.00" required>
-        </label>
-        <label>ช่องทาง
-          <select id="channel">
-            <option value="promptpay">promptpay</option>
-            <option value="truemoney">truemoney</option>
-            <option value="alipay">alipay</option>
-            <option value="alipayplus">alipayplus</option>
-            <option value="wechat">wechat</option>
-            <option value="airpay">airpay (ShopeePay)</option>
-            <option value="scb_qrcard">scb_qrcard</option>
-          </select>
-        </label>
-      </div>
-      <label>mch_order_no <span class="hint">ไม่เกิน 32 ตัว ห้ามซ้ำ</span>
-        <input id="mch_order_no" required>
-      </label>
-      <div class="row">
-        <label>รูปแบบภาพ
-          <select id="img_type"><option value="png">png</option><option value="svg">svg</option></select>
-        </label>
-        <label>หมดอายุใน (วินาที) <span class="hint">เว้นว่างได้</span>
-          <input id="expire_time" inputmode="numeric" placeholder="900">
+  <form class="card" id="f">
+    <label>จำนวนเงิน (บาท)
+      <input id="amount" inputmode="decimal" value="10.00" required>
+    </label>
+    <button type="submit" id="go">สร้าง QR</button>
+    <details>
+      <summary>ตัวเลือกเพิ่มเติม</summary>
+      <div class="adv">
+        <div class="row">
+          <label>ช่องทาง
+            <select id="channel">
+              <option value="promptpay">promptpay</option>
+              <option value="truemoney">truemoney</option>
+              <option value="alipay">alipay</option>
+              <option value="alipayplus">alipayplus</option>
+              <option value="wechat">wechat</option>
+              <option value="airpay">airpay</option>
+              <option value="scb_qrcard">scb_qrcard</option>
+            </select>
+          </label>
+          <label>หมดอายุ (วินาที)
+            <input id="expire_time" inputmode="numeric" value="900">
+          </label>
+        </div>
+        <label>appid
+          <input id="appid" placeholder="mch43525">
         </label>
       </div>
-      <label>notify_url <span class="hint">เว้นว่างได้ตอนทดสอบ</span>
-        <input id="notify_url" placeholder="https://your-server/api/ksher/notify">
-      </label>
-      <div class="row">
-        <button type="submit" id="go">สร้าง QR</button>
-        <button type="button" class="ghost" id="neworder">สุ่มเลขที่สั่งซื้อใหม่</button>
-      </div>
-    </form>
+    </details>
+  </form>
 
-    <div class="card">
-      <div id="out"><p class="sub">ผลลัพธ์จะขึ้นตรงนี้</p></div>
-    </div>
-  </div>
+  <div id="out"></div>
 
-  <div class="card">
-    <strong style="font-size:.9rem">สตริงที่เอาไปเซ็น กับคำตอบดิบจาก Ksher</strong>
+  <details>
+    <summary>คำตอบดิบ</summary>
     <pre id="raw">ยังไม่ได้ยิง</pre>
-  </div>
+  </details>
 </div>
 
 <script>
@@ -107,55 +106,123 @@
   if (D.appid) $('appid').value = D.appid;
   if (!D.hasPrivateKey) $('nokey').hidden = false;
 
-  const newOrder = () => 'T' + Date.now() + Math.floor(Math.random() * 100);
-  $('mch_order_no').value = newOrder();
-  $('neworder').onclick = () => { $('mch_order_no').value = newOrder(); };
+  let poll = null;      // ตัวจับเวลาเช็คสถานะ
+  let countdown = null; // ตัวจับเวลานับถอยหลังหมดอายุ
+
+  const stop = () => { clearInterval(poll); clearInterval(countdown); poll = countdown = null; };
+
+  const money = (n) => Number(n).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  function showStatus(kind, text, spinning) {
+    const el = $('st');
+    if (!el) return;
+    el.className = 'status st-' + kind;
+    el.innerHTML = (spinning ? '<span class="dot"></span>' : '') + '<span>' + text + '</span>';
+  }
+
+  // ข้อความสถานะตามที่เอกสาร Ksher ระบุไว้
+  const LABEL = {
+    SUCCESS: ['ok', 'จ่ายเงินเรียบร้อยแล้ว'],
+    NOTPAY: ['wait', 'ยังไม่ได้จ่าย — รอสแกน'],
+    USERPAYING: ['wait', 'ลูกค้ากำลังกดยืนยัน'],
+    PENDING: ['wait', 'กำลังดำเนินการ'],
+    PAYERROR: ['bad', 'จ่ายไม่สำเร็จ'],
+    CLOSED: ['bad', 'รายการถูกปิดแล้ว'],
+    FAIL: ['bad', 'รายการล้มเหลว'],
+    NOTSURE: ['bad', 'สถานะไม่แน่ชัด ให้ถามซ้ำอีกครั้ง'],
+    REFUND: ['bad', 'คืนเงินแล้ว'],
+  };
+
+  async function checkStatus(order, channel) {
+    try {
+      const r = await fetch('/query', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appid: $('appid').value.trim(), mch_order_no: order, channel }),
+      });
+      const j = await r.json();
+      if (j.errors) return;
+      const result = j.body && j.body.data && j.body.data.result;
+      if (!result) return;
+      const [kind, text] = LABEL[result] || ['wait', result];
+      showStatus(kind, text, kind === 'wait');
+      if (kind !== 'wait') {
+        stop();
+        $('raw').textContent = 'สถานะล่าสุด:\n' + JSON.stringify(j.body, null, 2);
+      }
+    } catch (e) { /* เงียบไว้ รอบหน้าค่อยลองใหม่ */ }
+  }
 
   $('f').onsubmit = async (e) => {
     e.preventDefault();
+    stop();
     $('go').disabled = true;
-    $('out').innerHTML = '<p class="sub">กำลังยิง…</p>';
-    const p = {};
-    for (const k of ['appid','amountBaht','channel','mch_order_no','img_type','expire_time','notify_url'])
-      p[k] = $(k).value.trim();
+    $('out').innerHTML = '<div class="card"><p class="sub">กำลังสร้าง QR…</p></div>';
+
+    const amountBaht = $('amount').value.trim();
+    const channel = $('channel').value;
+    const order = 'T' + Date.now() + Math.floor(Math.random() * 100);
+    const expire = $('expire_time').value.trim();
 
     try {
       const r = await fetch('/create', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appid: $('appid').value.trim(), amountBaht, channel,
+          mch_order_no: order, img_type: 'png', expire_time: expire,
+        }),
       });
       const j = await r.json();
-      $('raw').textContent =
-        (j.signString ? 'สตริงที่เซ็น:\n' + j.signString + '\n\n' : '') +
-        'คำตอบ:\n' + JSON.stringify(j.body || j, null, 2);
+      $('raw').textContent = JSON.stringify(j.body || j, null, 2);
 
       if (j.errors) {
-        $('out').innerHTML = '<div class="err">' + j.errors.map((x) => '• ' + x).join('<br>') + '</div>';
+        $('out').innerHTML = '<div class="card"><div class="err">' + j.errors.map((x) => '• ' + x).join('<br>') + '</div></div>';
         return;
       }
       const d = j.body && j.body.data;
-      if (j.body && j.body.code === 0 && d && (d.imgdat || d.code_url)) {
-        const src = d.imgdat ? (d.imgdat.indexOf('data:') === 0 ? d.imgdat : 'data:image/png;base64,' + d.imgdat) : '';
-        const img = src ? '<img alt="QR" src="' + src + '">' : '<p class="sub">ไม่มีรูปมา ใช้ code_url แทน</p>';
-        const sv = j.responseSignatureValid;
-        $('out').innerHTML =
-          '<p class="ok">สำเร็จ · HTTP ' + j.httpStatus + ' · ' + j.ms + ' ms</p>' +
-          '<div class="qr">' + img + '</div>' +
-          '<div class="meta">' +
-            '<span>ksher_order_no: ' + (d.ksher_order_no || '-') + '</span>' +
-            '<span>mch_order_no: ' + (d.mch_order_no || '-') + '</span>' +
-            '<span>result: ' + (d.result || '-') + '</span>' +
-            '<span>total_fee ที่ส่งไป: ' + (j.sentParams && j.sentParams.total_fee) + ' สตางค์</span>' +
-            '<span>code_url: ' + (d.code_url || '-') + '</span>' +
-            '<span>ลายเซ็นคำตอบ: ' + (sv === null ? 'ไม่ได้ตรวจ (ยังไม่มีกุญแจสาธารณะ)' : sv ? 'ถูกต้อง' : 'ไม่ถูกต้อง') + '</span>' +
-          '</div>';
-      } else {
+      if (!(j.body && j.body.code === 0 && d && d.imgdat)) {
         const b = j.body || {};
-        const msg = b.msg || (b.data && (b.data.err_msg || b.data.result)) || b._parseError || 'Ksher ไม่ได้ตอบว่าสำเร็จ';
-        $('out').innerHTML = '<div class="err">' + msg + ' · code ' + (b.code !== undefined ? b.code : '-') +
-          ' · HTTP ' + j.httpStatus + '</div>';
+        const msg = (b.data && (b.data.err_msg || b.data.result)) || b.msg || 'Ksher ไม่ได้ตอบว่าสำเร็จ';
+        $('out').innerHTML = '<div class="card"><div class="err">' + msg + '</div></div>';
+        return;
       }
+
+      const src = d.imgdat.indexOf('data:') === 0 ? d.imgdat : 'data:image/png;base64,' + d.imgdat;
+      $('out').innerHTML =
+        '<div class="card">' +
+          '<div class="qrbox">' +
+            '<img alt="QR สำหรับสแกนจ่าย" src="' + src + '">' +
+            '<div class="amt">฿' + money(amountBaht) + '</div>' +
+          '</div>' +
+          '<div class="status st-wait" id="st"><span class="dot"></span><span>รอสแกน</span></div>' +
+          '<div class="row">' +
+            '<button type="button" class="ghost" id="recheck">เช็คสถานะเดี๋ยวนี้</button>' +
+            '<button type="button" class="ghost" id="stopbtn">หยุดเช็ค</button>' +
+          '</div>' +
+          '<div class="meta">' +
+            '<span>order: ' + order + '</span>' +
+            '<span>ksher: ' + (d.ksher_order_no || '-') + '</span>' +
+            '<span>ส่งไป ' + (j.sentParams && j.sentParams.total_fee) + ' สตางค์</span>' +
+            '<span id="cd"></span>' +
+            '<span>ลายเซ็นคำตอบ: ' + (j.responseSignatureValid === true ? 'ถูกต้อง' : j.responseSignatureValid === false ? 'ไม่ถูกต้อง' : 'ไม่ได้ตรวจ') + '</span>' +
+          '</div>' +
+        '</div>';
+
+      $('recheck').onclick = () => checkStatus(order, channel);
+      $('stopbtn').onclick = () => { stop(); showStatus('wait', 'หยุดเช็คแล้ว', false); };
+
+      // เช็คทุก 3 วินาที และนับถอยหลังจนหมดอายุ
+      poll = setInterval(() => checkStatus(order, channel), 3000);
+      let left = Number(expire) || 900;
+      countdown = setInterval(() => {
+        left -= 1;
+        const el = $('cd');
+        if (el) el.textContent = left > 0
+          ? 'หมดอายุใน ' + Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0')
+          : 'หมดอายุแล้ว';
+        if (left <= 0) { stop(); showStatus('bad', 'QR หมดอายุแล้ว', false); }
+      }, 1000);
     } catch (err) {
-      $('out').innerHTML = '<div class="err">ติดต่อเซิร์ฟเวอร์ในเครื่องไม่ได้: ' + err.message + '</div>';
+      $('out').innerHTML = '<div class="card"><div class="err">ติดต่อเซิร์ฟเวอร์ไม่ได้: ' + err.message + '</div></div>';
     } finally {
       $('go').disabled = false;
     }

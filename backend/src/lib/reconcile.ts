@@ -1,54 +1,57 @@
-// ตามเก็บเฉพาะรายการของ Stripe เท่านั้น
-//
-// Stripe ต้องมีตัวตามเพราะ QR ของ PromptPay ยังจ่ายได้หลังบอร์ดเลิกถามแล้ว และ webhook อาจหาย
-// ส่วน Ksher ให้เครื่องถาม check_status เอาเอง ซึ่งเพียงพอสำหรับตอนนี้ ถ้าจะเพิ่มการตามเก็บ
-// ให้ Ksher ด้วย ต้องเรียกผ่าน provider.getStatus แทน stripeRequest ที่ใช้อยู่ในไฟล์นี้
 // ตามเก็บรายการที่ค้างสถานะไม่จบ
 //
-// รายการจะค้างเมื่อบอร์ดเลิกถามก่อนที่ Stripe จะสรุปผล (เครื่องดับ เน็ตหลุด ลูกค้าเดินหนี
+// รายการจะค้างเมื่อบอร์ดเลิกถามก่อนที่ผู้ให้บริการจะสรุปผล (เครื่องดับ เน็ตหลุด ลูกค้าเดินหนี
 // หรือ QR หมดอายุที่ฝั่งบอร์ดแต่ยังจ่ายได้จริง) ตอนเจอครั้งแรกมีค้างอยู่ 29 จาก 39 รายการ
 //
-// สำคัญ: งานนี้ "ถาม Stripe" เสมอ ไม่ได้เดาว่าเก่าแล้วต้องหมดอายุ — เพราะบางรายการอาจจ่ายสำเร็จ
-// จริงหลังบอร์ดเลิกถาม การไปปิดเป็น expired ทื่อๆ จะกลืนเงินของร้านค้าหายไปเงียบๆ
+// ทำงานกับผู้ให้บริการทุกเจ้าผ่าน provider.getStatus() — ไม่ผูกกับ Stripe อีกต่อไป
+// Ksher จำเป็นต้องมีตัวนี้มากกว่า Stripe ด้วยซ้ำ เพราะยังไม่มี webhook คอยบอกว่าเงินเข้าแล้ว
+// ทางเดียวที่จะรู้คือถามเอง
+//
+// สำคัญ: งานนี้ "ถามผู้ให้บริการ" เสมอ ไม่ได้เดาว่าเก่าแล้วต้องหมดอายุ — เพราะบางรายการอาจจ่าย
+// สำเร็จจริงหลังบอร์ดเลิกถาม การไปปิดเป็นหมดอายุทื่อๆ จะกลืนเงินของร้านค้าหายไปเงียบๆ
 import { pool } from '../db';
-import { stripeRequest } from '../stripe';
 import { applyProviderStatus, TERMINAL_STATUSES } from './transactionSync';
-import { stripeIntentToStatus } from './providers/stripe';
+import { getProvider } from './providers';
 
 /** รอสักพักก่อนค่อยตาม ไม่ไปแย่งกับบอร์ดที่กำลังถาม check_status อยู่ */
 const MIN_AGE_MINUTES = 10;
-/** จำกัดจำนวนต่อรอบ กันยิง Stripe รัวเกินไป */
+/** จำกัดจำนวนต่อรอบ กันยิงผู้ให้บริการรัวเกินไป */
 const BATCH_SIZE = 50;
-/** เลิกตามรายการที่เก่ากว่านี้ — PaymentIntent ที่ค้างมาเป็นสัปดาห์ไม่มีทางเปลี่ยนสถานะแล้ว */
+/** เลิกตามรายการที่เก่ากว่านี้ — รายการที่ค้างมาเป็นสัปดาห์ไม่มีทางเปลี่ยนสถานะแล้ว */
 const MAX_AGE_DAYS = 7;
 /**
- * PromptPay: พอ QR หมดอายุ intent จะตกกลับมาเป็น requires_payment_method แล้วอยู่อย่างนั้นถาวร
- * ถ้าไม่กันไว้ รายการที่ถูกทิ้งจะถูกถาม Stripe ซ้ำทุกรอบตลอดไป — ตอนเปิดใช้งานครั้งแรกมีอยู่ 26
- * รายการ คิดเป็นการยิง Stripe เปล่าๆ ราว 2,500 ครั้งต่อวัน
+ * QR ที่ไม่มีใครจ่ายจะค้างอยู่สถานะเดิมถาวร — ฝั่ง Stripe ตกกลับมาเป็น requires_payment_method
+ * ส่วน Ksher ค้างอยู่ที่ NOTPAY ซึ่งแปลงมาเป็น requires_action
+ *
+ * ถ้าไม่กันไว้ รายการที่ถูกทิ้งจะถูกถามซ้ำทุกรอบตลอดไป — ตอนเปิดใช้งานครั้งแรกมีอยู่ 26 รายการ
+ * คิดเป็นการยิงเปล่าๆ ราว 2,500 ครั้งต่อวัน
+ *
+ * QR ตั้งให้หมดอายุใน 15 นาที การรอถึง 24 ชั่วโมงจึงเผื่อไว้มากเกินพอแล้ว
  */
 const ABANDONED_AFTER_HOURS = 24;
+const ABANDONED_STATUSES = ['requires_payment_method', 'requires_action'];
 
 export interface ReconcileResult {
   checked: number;
   updated: number;
   /** รายการที่กลายเป็นสำเร็จ = เงินที่ระบบเคยไม่รู้ว่าได้รับ ต้องรายงานให้เห็นชัด */
-  recovered: { id: number; payment_intent_id: string; amount: number; device_id: number }[];
+  recovered: { id: number; provider: string; payment_intent_id: string; amount: number; device_id: number }[];
   errors: number;
 }
 
 export async function reconcileStaleTransactions(limit = BATCH_SIZE): Promise<ReconcileResult> {
   const placeholders = TERMINAL_STATUSES.map(() => '?').join(',');
+  const abandonedPlaceholders = ABANDONED_STATUSES.map(() => '?').join(',');
   const [rows] = await pool.query(
     `SELECT id, device_id, provider, payment_intent_id, status, amount, settlement_id
      FROM transactions
-     WHERE provider = 'stripe'
-       AND status NOT IN (${placeholders})
+     WHERE status NOT IN (${placeholders})
        AND created_at < NOW() - INTERVAL ? MINUTE
        AND created_at > NOW() - INTERVAL ? DAY
-       AND NOT (status = 'requires_payment_method' AND created_at < NOW() - INTERVAL ? HOUR)
+       AND NOT (status IN (${abandonedPlaceholders}) AND created_at < NOW() - INTERVAL ? HOUR)
      ORDER BY created_at ASC
      LIMIT ?`,
-    [...TERMINAL_STATUSES, MIN_AGE_MINUTES, MAX_AGE_DAYS, ABANDONED_AFTER_HOURS, limit]
+    [...TERMINAL_STATUSES, MIN_AGE_MINUTES, MAX_AGE_DAYS, ...ABANDONED_STATUSES, ABANDONED_AFTER_HOURS, limit]
   );
 
   const result: ReconcileResult = { checked: 0, updated: 0, recovered: [], errors: 0 };
@@ -56,30 +59,36 @@ export async function reconcileStaleTransactions(limit = BATCH_SIZE): Promise<Re
   for (const txn of rows as any[]) {
     result.checked++;
 
-    // ข้ามรายการที่ไม่ใช่ payment intent จริง (เช่นข้อมูลทดสอบเก่า) — ยิงไปก็ 404 เปล่าๆ
-    if (!/^pi_[a-zA-Z0-9]+$/.test(txn.payment_intent_id || '')) {
+    const provider = getProvider(txn.provider);
+
+    // ผู้ให้บริการที่ยังตั้งค่าไม่ครบ ถามไปก็ล้มเหลวทุกครั้ง ข้ามเงียบๆ ดีกว่าทำให้ log เต็มไปด้วย error
+    if (!provider.isConfigured()) {
       continue;
     }
 
-    const res = await stripeRequest('GET', `/payment_intents/${encodeURIComponent(txn.payment_intent_id)}`, {
-      expand: ['latest_charge.balance_transaction'],
-    });
+    // ข้ามรหัสอ้างอิงที่ไม่ใช่รูปแบบของเจ้านั้น (เช่นข้อมูลทดสอบเก่า) — ยิงไปก็เปล่าประโยชน์
+    if (!provider.isValidRef(txn.payment_intent_id || '')) {
+      continue;
+    }
 
-    if (!res.ok) {
+    let statusResult;
+    try {
+      statusResult = await provider.getStatus(txn.payment_intent_id);
+    } catch (err: any) {
       result.errors++;
-      console.error(`[reconcile] ถาม Stripe ไม่สำเร็จ ${txn.payment_intent_id}: ${res.error}`);
+      console.error(`[reconcile] ถาม ${provider.name} ไม่สำเร็จ ${txn.payment_intent_id}: ${err?.message}`);
       continue;
     }
 
-    const status = String(res.data?.status || '');
     const wasSucceeded = txn.status === 'succeeded';
-    const changed = await applyProviderStatus(txn, stripeIntentToStatus(res.data));
+    const changed = await applyProviderStatus(txn, statusResult);
 
     if (changed) {
       result.updated++;
-      if (status === 'succeeded' && !wasSucceeded) {
+      if (statusResult.status === 'succeeded' && !wasSucceeded) {
         result.recovered.push({
           id: txn.id,
+          provider: provider.name,
           payment_intent_id: txn.payment_intent_id,
           amount: Number(txn.amount),
           device_id: txn.device_id,

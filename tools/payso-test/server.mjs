@@ -18,9 +18,24 @@ const PORT = Number(process.env.PORT || 8787);
 const ENDPOINT = 'https://apis.paysolutions.asia/tep/api/v2/promptpaynew';
 
 // ค่าเริ่มต้นจาก environment เพื่อไม่ต้องพิมพ์ใหม่ทุกครั้ง แต่กรอกทับในหน้าเว็บได้
+function readLocalEnv() {
+  // .env.local อยู่ในโฟลเดอร์เดียวกันและถูก .gitignore กันไว้ — ห้ามเอาคีย์จริงใส่ไฟล์ที่ commit
+  try {
+    const out = {};
+    for (const line of readFileSync(join(DIR, '.env.local'), 'utf8').split(/\r?\n/)) {
+      const m = /^([A-Z_]+)=(.*)$/.exec(line.trim());
+      if (m) out[m[1]] = m[2];
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+const LOCAL = readLocalEnv();
 const DEFAULTS = {
-  merchantID: process.env.PAYSO_MERCHANT_ID || '',
-  token: process.env.PAYSO_TOKEN || '',
+  merchantID: process.env.PAYSO_MERCHANT_ID || LOCAL.PAYSO_MERCHANT_ID || '',
+  token: process.env.PAYSO_TOKEN || LOCAL.PAYSO_TOKEN || '',
+  authMode: LOCAL.PAYSO_AUTH_MODE || 'bearer',
 };
 
 /** ข้อจำกัดตามเอกสารของ Payso — ดักที่นี่ก่อนเพื่อให้เห็นสาเหตุชัดกว่ารอ error จากปลายทาง */
@@ -49,11 +64,16 @@ async function createQr(p) {
   const url = `${ENDPOINT}?${qs}`;
   const started = Date.now();
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${p.token}`, Accept: 'application/json' },
-    signal: AbortSignal.timeout(20000),
-  });
+  const headers = { Accept: 'application/json' };
+  if (p.authMode === 'apikey') {
+    headers.apikey = p.token;
+  } else if (p.authMode === 'basic') {
+    headers.Authorization = `Basic ${Buffer.from(p.token).toString('base64')}`;
+  } else {
+    headers.Authorization = `Bearer ${p.token}`;
+  }
+
+  const res = await fetch(url, { method: 'POST', headers, signal: AbortSignal.timeout(20000) });
 
   const raw = await res.text();
   let body;

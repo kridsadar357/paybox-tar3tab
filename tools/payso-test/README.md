@@ -50,3 +50,28 @@ PAYSO_MERCHANT_ID=12345678 PAYSO_TOKEN=xxxx node tools/payso-test/server.mjs
 
 เมื่อยืนยันว่าสร้าง QR ได้จริงแล้ว ขั้นถัดไปคือทำให้ Payso เป็นผู้ให้บริการตัวที่สองในระบบจริง
 โดยเลือกได้ตอนเพิ่มเครื่อง — Stripe ยังอยู่เหมือนเดิม
+
+## ผลทดสอบหา Bearer token (4 ก.ย. 2569)
+
+ลองทุกชุดที่เป็นไปได้กับคีย์ที่ได้จากหลังบ้าน (Secret Key และ API Key) — **ไม่ผ่านสักแบบ**
+
+| รูปแบบ | ผล |
+|---|---|
+| `Authorization: Bearer <secret key>` | 500 `authorization error` |
+| `Authorization: Bearer <api key>` | 500 `authorization error` |
+| `Authorization: Basic base64(...)` | 500 `authorization error` |
+| `Authorization: Bearer base64(apikey:secret)` | 500 `authorization error` |
+| `Authorization: Bearer base64(merchantID:secret)` | 500 `authorization error` |
+| `apikey: <key>` อย่างเดียว ไม่มี Authorization | 500 `no Authorization` |
+
+แถวสุดท้ายยืนยันว่า endpoint นี้อ่าน header `Authorization` จริง และบังคับต้องมี —
+ต่างจาก endpoint อื่นของ Payso ที่ใช้ header `apikey` เฉยๆ
+
+ลองหา endpoint ที่ออก token ด้วย (`/tep/api/v*/token`, `/authen`, `/auth/token`) ได้ 404 ทุกอัน
+
+**ข้อสรุป:** Bearer token ของ PromptPay API เป็นคีย์คนละตัวกับ Secret Key และ API Key
+ต้องขอจาก Payso แยกต่างหาก ซึ่งตรงกับที่เอกสารมีหัวข้อ "Authorizations → Auth Key" ค้างไว้
+แต่ไม่ได้เขียนเนื้อหา
+
+พอได้คีย์มาแล้วใส่ในช่อง Auth key บนหน้าเว็บได้เลย ถ้า Payso บอกว่าใช้รูปแบบอื่น
+ก็สลับตัวเลือก "รูปแบบ auth" ได้โดยไม่ต้องแก้โค้ด

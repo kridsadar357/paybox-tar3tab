@@ -22,6 +22,7 @@
   @media(min-width:52rem){.grid{grid-template-columns:1fr 1fr}}
   .card{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:1.25rem;display:flex;flex-direction:column;gap:.9rem}
   label{display:flex;flex-direction:column;gap:.3rem;font-size:.85rem;color:var(--soft)}
+  select{font:inherit;font-size:.92rem;padding:.5rem .65rem;border:1px solid var(--line);border-radius:3px;background:var(--paper);color:var(--ink)}
   input{font:inherit;font-size:.92rem;padding:.5rem .65rem;border:1px solid var(--line);border-radius:3px;background:var(--paper);color:var(--ink)}
   input:focus{outline:2px solid var(--jade);outline-offset:1px}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
@@ -49,8 +50,15 @@
       <label>merchantID <span class="hint">ตัวเลข 8 หลัก</span>
         <input id="merchantID" inputmode="numeric" placeholder="12345678" required>
       </label>
-      <label>Bearer token <span class="hint">ไม่ถูกส่งไปที่เบราว์เซอร์ของใคร อยู่แค่ในเครื่องนี้</span>
-        <input id="token" type="password" placeholder="วาง token" required>
+      <label>Auth key <span class="hint">อยู่แค่ในเครื่องนี้ ไม่ได้ส่งไปที่ไหนนอกจาก Payso</span>
+        <input id="token" type="password" placeholder="วางคีย์ที่ Payso ให้มา" required>
+      </label>
+      <label>รูปแบบ auth <span class="hint">เอกสารไม่ได้บอกว่าใช้แบบไหน ลองสลับดูได้</span>
+        <select id="authMode">
+          <option value="bearer">Authorization: Bearer &lt;key&gt;</option>
+          <option value="apikey">apikey: &lt;key&gt;</option>
+          <option value="basic">Authorization: Basic base64(&lt;key&gt;)</option>
+        </select>
       </label>
       <div class="row">
         <label>total (บาท) <span class="hint">ขั้นต่ำ 6</span>
@@ -92,6 +100,7 @@
   const $ = (id) => document.getElementById(id);
   if (D.merchantID) $('merchantID').value = D.merchantID;
   if (D.token) $('token').value = D.token;
+  if (D.authMode) $('authMode').value = D.authMode;
 
   // 12 หลักจากเวลาปัจจุบัน ท้ายด้วยสุ่มกันชนกันเองเวลากดรัวๆ
   const newRef = () => {
@@ -108,7 +117,7 @@
     $('go').disabled = true;
     $('out').innerHTML = '<p class="sub">กำลังยิง…</p>';
     const payload = {};
-    for (const k of ['merchantID','token','total','referenceNo','customerName','customerEmail','productDetail'])
+    for (const k of ['merchantID','token','total','referenceNo','customerName','customerEmail','productDetail','authMode'])
       payload[k] = $(k).value.trim();
 
     try {

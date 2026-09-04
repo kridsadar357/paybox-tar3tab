@@ -59,6 +59,13 @@ services:
       DB_PASS: ${DB_PASS}
       DB_NAME: ${DB_NAME:-paybox}
       UPLOADS_DIR: /app/uploads
+      # ผู้ให้บริการรับชำระเงินตัวที่สอง เลือกได้ต่อเครื่องในหน้าแอดมิน
+      # กุญแจ PEM ใน .env เขียนเป็น backslash+n แทนการขึ้นบรรทัดจริง config แปลงกลับให้เอง
+      KSHER_APPID: ${KSHER_APPID}
+      KSHER_PRIVATE_KEY: ${KSHER_PRIVATE_KEY}
+      # อัตราที่แต่ละเจ้าเก็บจากเรา ใช้เป็นพื้นขั้นต่ำของค่าธรรมเนียมที่ตั้งให้ร้านค้า
+      PROVIDER_FEE_PERCENT_STRIPE: ${PROVIDER_FEE_PERCENT_STRIPE:-1.77}
+      PROVIDER_FEE_PERCENT_KSHER: ${PROVIDER_FEE_PERCENT_KSHER:-1.77}
     volumes:
       - paybox-uploads:/app/uploads
       # credential ของช่องทางแจ้งเตือน — backend เขียน, cron บน host อ่านไปใช้

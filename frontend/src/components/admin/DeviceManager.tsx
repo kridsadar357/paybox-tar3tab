@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { adminApi } from '../../api/adminApi';
 import { useAuth } from '../../context/AuthContext';
-import type { Device } from '../../types';
+import type { Device, ProviderInfo } from '../../types';
 import type { Customer } from '../../types';
 import { deviceContact, relativeTime, compareVersions } from '../../lib/format';
 import { Modal, Notice, type NoticeState } from './ui';
@@ -13,6 +13,8 @@ export const DeviceManager: React.FC = () => {
   const [devices, setDevices] = useState<Device[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [latestFw, setLatestFw] = useState<string | null>(null);
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [providerDevice, setProviderDevice] = useState<Device | null>(null);
   const [quietMinutes, setQuietMinutes] = useState(5);
   const [notice, setNotice] = useState<NoticeState>(null);
   const [query, setQuery] = useState('');
@@ -32,6 +34,7 @@ export const DeviceManager: React.FC = () => {
       ]);
       if (devRes.success) {
         setDevices(devRes.devices || []);
+        setProviders(devRes.providers || []);
         setLatestFw(devRes.latest_firmware);
         if (devRes.quiet_period_minutes) setQuietMinutes(devRes.quiet_period_minutes);
       }
@@ -271,6 +274,7 @@ export const DeviceManager: React.FC = () => {
                 <th>สถานะ</th>
                 <th>เฟิร์มแวร์</th>
                 <th>เจ้าของ</th>
+                <th>ผู้ให้บริการ</th>
                 <th>Device key</th>
                 <th className="r">จัดการ</th>
               </tr>
@@ -335,6 +339,17 @@ export const DeviceManager: React.FC = () => {
                           </option>
                         ))}
                       </select>
+                    </td>
+
+                    <td>
+                      <button
+                        onClick={() => setProviderDevice(d)}
+                        className="chip chip-mute"
+                        style={{ cursor: 'pointer' }}
+                        title="เปลี่ยนผู้ให้บริการรับชำระเงิน"
+                      >
+                        {d.payment_provider || 'stripe'}
+                      </button>
                     </td>
 
                     <td>
@@ -456,10 +471,25 @@ export const DeviceManager: React.FC = () => {
 
       {showAdd && (
         <AddDeviceModal
+          providers={providers}
           token={adminToken}
           onClose={() => setShowAdd(false)}
           onDone={(text) => {
             setShowAdd(false);
+            setNotice({ ok: true, text });
+            fetchData();
+          }}
+        />
+      )}
+
+      {providerDevice && (
+        <ChangeProviderModal
+          token={adminToken}
+          device={providerDevice}
+          providers={providers}
+          onClose={() => setProviderDevice(null)}
+          onDone={(text) => {
+            setProviderDevice(null);
             setNotice({ ok: true, text });
             fetchData();
           }}
@@ -588,14 +618,17 @@ function ConfirmUpdateModal({
 
 function AddDeviceModal({
   token,
+  providers,
   onClose,
   onDone,
 }: {
   token: string;
+  providers: ProviderInfo[];
   onClose: () => void;
   onDone: (text: string) => void;
 }) {
   const [name, setName] = useState('');
+  const [provider, setProvider] = useState('stripe');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [issuedKey, setIssuedKey] = useState('');
@@ -607,7 +640,7 @@ function AddDeviceModal({
     setBusy(true);
     setErr('');
     try {
-      const res = await adminApi.addDevice(token, name.trim());
+      const res = await adminApi.addDevice(token, name.trim(), provider);
       if (res.success && res.device_key) setIssuedKey(res.device_key);
       else setErr('เพิ่มอุปกรณ์ไม่สำเร็จ');
     } catch (e: any) {
@@ -667,6 +700,8 @@ function AddDeviceModal({
           />
         </div>
 
+        <ProviderPicker providers={providers} value={provider} onChange={setProvider} />
+
         {err && (
           <p
             className="text-[13.5px] px-3.5 py-2.5 rounded"
@@ -686,6 +721,117 @@ function AddDeviceModal({
           </button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+/**
+ * เลือกผู้ให้บริการรับชำระเงินของเครื่อง
+ *
+ * เจ้าที่ยังตั้งค่าไม่ครบจะเลือกไม่ได้ และบอกเหตุผลไว้ข้างๆ แทนที่จะปล่อยให้เลือกแล้วไปพังตอน
+ * เครื่องขอ QR จริง ซึ่งกว่าจะรู้ก็คือมีลูกค้ายืนรออยู่หน้าเครื่องแล้ว
+ */
+function ProviderPicker({
+  providers,
+  value,
+  onChange,
+}: {
+  providers: ProviderInfo[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const list = providers.length ? providers : [{ name: 'stripe', configured: true, fee_percent: 0 }];
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="label">ผู้ให้บริการรับชำระเงิน</span>
+      <div className="flex flex-col gap-1.5">
+        {list.map((p) => {
+          const on = value === p.name;
+          return (
+            <button
+              key={p.name}
+              type="button"
+              disabled={!p.configured}
+              onClick={() => onChange(p.name)}
+              className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded text-left transition-colors"
+              style={{
+                background: on ? 'var(--jade-wash)' : 'transparent',
+                border: '1px solid ' + (on ? 'transparent' : 'var(--line)'),
+                color: on ? 'var(--jade)' : 'var(--ink-soft)',
+                opacity: p.configured ? 1 : 0.5,
+                cursor: p.configured ? 'pointer' : 'not-allowed',
+              }}
+            >
+              <span className="text-[14px]" style={{ fontWeight: on ? 600 : 500 }}>
+                {p.name}
+              </span>
+              <span className="text-[12px] figure" style={{ color: 'var(--ink-faint)' }}>
+                {p.configured ? `ต้นทุน ${p.fee_percent}%` : 'ยังตั้งค่าไม่ครบ'}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** เปลี่ยนผู้ให้บริการของเครื่องที่มีอยู่แล้ว มีผลกับรายการใหม่เท่านั้น */
+function ChangeProviderModal({
+  token,
+  device,
+  providers,
+  onClose,
+  onDone,
+}: {
+  token: string;
+  device: Device;
+  providers: ProviderInfo[];
+  onClose: () => void;
+  onDone: (text: string) => void;
+}) {
+  const [value, setValue] = useState(device.payment_provider || 'stripe');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  const save = async () => {
+    setBusy(true);
+    setErr('');
+    try {
+      const res = await adminApi.setDeviceProvider(token, device.id, value);
+      if (res.success) onDone('เปลี่ยนผู้ให้บริการของ "' + (device.shop_name || device.name) + '" เป็น ' + value + ' แล้ว');
+      else setErr('เปลี่ยนไม่สำเร็จ');
+    } catch (e: any) {
+      setErr(e.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal title="ผู้ให้บริการรับชำระเงิน" subtitle={device.shop_name || device.name} onClose={onClose}>
+      <div className="flex flex-col gap-5">
+        <ProviderPicker providers={providers} value={value} onChange={setValue} />
+        <p className="text-[12.5px] leading-relaxed" style={{ color: 'var(--ink-faint)' }}>
+          มีผลกับรายการที่เกิดหลังจากนี้เท่านั้น รายการเดิมยังผูกกับผู้ให้บริการที่รับเงินไปตอนนั้น
+          จึงยังถามสถานะย้อนหลังได้ถูกที่
+        </p>
+        {err && (
+          <p
+            className="text-[13.5px] px-3.5 py-2.5 rounded"
+            style={{ color: 'var(--down)', background: 'var(--down-wash)' }}
+            role="alert"
+          >
+            {err}
+          </p>
+        )}
+        <div className="flex justify-end gap-3">
+          <button onClick={onClose} className="btn btn-ghost">ยกเลิก</button>
+          <button onClick={save} disabled={busy} className="btn btn-primary">
+            {busy ? 'กำลังบันทึก…' : 'บันทึก'}
+          </button>
+        </div>
+      </div>
     </Modal>
   );
 }

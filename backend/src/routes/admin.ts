@@ -2,6 +2,7 @@
 // คงชื่อ resource/action เดิมไว้ทั้งหมดเพื่อให้ frontend เดิมใช้ได้โดยไม่ต้องแก้โค้ด
 import { Router } from 'express';
 import { isFeeBelowCost, grossPercentForNetMargin } from '../lib/money';
+import { providerFeePercent, isProviderName, providerStatus } from '../lib/providers';
 import crypto from 'crypto';
 import multer from 'multer';
 import path from 'path';
@@ -126,17 +127,46 @@ adminRouter.post('/', upload.single('proof_file'), async (req: AdminRequest, res
   const action = req.body.action as string;
 
   try {
+    if (action === 'set_provider' && req.body.device_id) {
+      const deviceId = Number(req.body.device_id);
+      if (!isProviderName(req.body.payment_provider)) {
+        return res.status(400).json({ success: false, error: 'invalid_provider' });
+      }
+      const provider = req.body.payment_provider;
+
+      const [beforeRows]: any = await pool.query(
+        'SELECT name, payment_provider FROM devices WHERE id = ? LIMIT 1',
+        [deviceId]
+      );
+      const prev = beforeRows[0];
+      if (!prev) return res.status(404).json({ success: false, error: 'not_found' });
+
+      await pool.query('UPDATE devices SET payment_provider = ? WHERE id = ?', [provider, deviceId]);
+
+      // รายการเก่ายังผูกกับผู้ให้บริการเดิมของมันเอง การเปลี่ยนตรงนี้มีผลกับรายการใหม่เท่านั้น
+      await logAudit(req, 'set_provider', {
+        targetType: 'device',
+        targetId: deviceId,
+        summary: `เปลี่ยนผู้ให้บริการของ "${prev.name}" จาก ${prev.payment_provider} เป็น ${provider}`,
+        detail: { before: prev.payment_provider, after: provider },
+      });
+      return res.json({ success: true });
+    }
+
     if (action === 'add_device' && req.body.device_name) {
       const newKey = crypto.randomBytes(16).toString('hex');
       const deviceName = String(req.body.device_name).trim();
-      const [result]: any = await pool.query('INSERT INTO devices (device_key, name, is_active) VALUES (?, ?, 1)', [
-        newKey,
-        deviceName,
-      ]);
+      // ไม่รู้จักชื่อไหนให้ตกกลับไปที่ stripe ซึ่งเป็นค่าเดิมของทั้งระบบ
+      const providerName = isProviderName(req.body.payment_provider) ? req.body.payment_provider : 'stripe';
+      const [result]: any = await pool.query(
+        'INSERT INTO devices (device_key, name, is_active, payment_provider) VALUES (?, ?, 1, ?)',
+        [newKey, deviceName, providerName]
+      );
       await logAudit(req, 'add_device', {
         targetType: 'device',
         targetId: result?.insertId,
-        summary: `เพิ่มอุปกรณ์ "${deviceName}"`,
+        summary: `เพิ่มอุปกรณ์ "${deviceName}" ใช้ ${providerName}`,
+        detail: { payment_provider: providerName },
       });
       return res.json({ success: true, device_key: newKey });
     }
@@ -440,14 +470,26 @@ adminRouter.post('/', upload.single('proof_file'), async (req: AdminRequest, res
 
       // กันไม่ให้ตั้งอัตราที่ขาดทุนแน่ๆ — ตัวเลขที่ตั้งตรงนี้คือที่เก็บจากร้านค้า ไม่ใช่ที่เราได้
       // ส่วนที่เราได้คือ ตัวเลขนี้ ลบ ต้นทุนของผู้ให้บริการ
-      if (feeTier === 'percentage' && isFeeBelowCost(feePercent, config.providerFeePercent)) {
+      //
+      // ค่าธรรมเนียมตั้งต่อลูกค้า แต่ผู้ให้บริการเลือกต่อเครื่อง ลูกค้าหนึ่งรายจึงมีเครื่องที่ใช้
+      // คนละเจ้าและต้นทุนไม่เท่ากันได้ ใช้เจ้าที่แพงที่สุดในบรรดาเครื่องของลูกค้ารายนั้นเป็นพื้น
+      // เพื่อรับประกันว่าไม่มีเครื่องไหนขาดทุน
+      const [provRows] = await pool.query(
+        'SELECT DISTINCT payment_provider FROM devices WHERE customer_id = ?',
+        [customerId]
+      );
+      const usedProviders = (provRows as any[]).map((r) => r.payment_provider);
+      const floor = usedProviders.length
+        ? Math.max(...usedProviders.map((n) => providerFeePercent(n)))
+        : providerFeePercent('stripe');
+
+      if (feeTier === 'percentage' && isFeeBelowCost(feePercent, floor)) {
         return res.status(400).json({
           success: false,
           error: 'fee_below_cost',
           message:
-            `อัตรานี้ต่ำกว่าต้นทุน — ผู้ให้บริการรับชำระเงินเก็บ ${config.providerFeePercent}% ` +
-            `ต้องตั้งสูงกว่านั้น เช่น ${grossPercentForNetMargin(1, config.providerFeePercent)}% ` +
-            `จะเหลือกำไรสุทธิ 1.00%`,
+            `อัตรานี้ต่ำกว่าต้นทุน — ผู้ให้บริการที่เครื่องของลูกค้ารายนี้ใช้อยู่เก็บสูงสุด ${floor}% ` +
+            `ต้องตั้งสูงกว่านั้น เช่น ${grossPercentForNetMargin(1, floor)}% จะเหลือกำไรสุทธิ 1.00%`,
         });
       }
 
@@ -646,7 +688,7 @@ adminRouter.get('/', async (req, res) => {
   if (resource === 'devices') {
     const [rows] = await pool.query(
       `SELECT d.id, d.device_key, d.name, d.shop_name, d.is_active, d.created_at, d.last_seen_at,
-              d.firmware_version, d.customer_id, d.entry_method, d.op_mode, d.fixed_amount,
+              d.firmware_version, d.customer_id, d.payment_provider, d.entry_method, d.op_mode, d.fixed_amount,
               c.name AS customer_name,
               cmd.status AS command_status, cmd.hold_reason AS command_hold_reason,
               cmd.created_at AS command_created_at,
@@ -672,6 +714,8 @@ adminRouter.get('/', async (req, res) => {
       devices: rows,
       latest_firmware: latestVersion,
       quiet_period_minutes: QUIET_PERIOD_MINUTES,
+      // บอกหน้าเว็บว่ามีผู้ให้บริการอะไรบ้าง เจ้าไหนตั้งค่าครบพร้อมใช้ และคิดค่าธรรมเนียมเท่าไหร่
+      providers: providerStatus(),
     });
   }
 

@@ -29,10 +29,29 @@ export const config = {
     password: process.env.DB_PASS || '',
     database: requireEnv('DB_NAME'),
   },
-  // อัตราที่ผู้ให้บริการรับชำระเงินเก็บจากเรา ใช้เป็นพื้นขั้นต่ำของค่าธรรมเนียมที่ตั้งให้ร้านค้า
-  // ค่าเริ่มต้น 1.77 มาจากการวัดค่าธรรมเนียมจริงที่ Stripe เก็บในรายการที่ผ่านระบบ
-  // ถ้าเจรจาราคาใหม่ได้หรือย้ายไปต่อธนาคารโดยตรง ให้แก้ค่านี้ ระบบจะใช้เป็นพื้นใหม่ทันที
-  providerFeePercent: parseFloat(process.env.PROVIDER_FEE_PERCENT || '1.77'),
+  // อัตราที่ผู้ให้บริการรับชำระเงินแต่ละเจ้าเก็บจากเรา ใช้เป็นพื้นขั้นต่ำของค่าธรรมเนียมที่ตั้งให้ร้านค้า
+  // ตัวเลขของ Stripe มาจากการวัดค่าธรรมเนียมจริงในรายการที่ผ่านระบบ ส่วนเจ้าอื่นต้องยืนยันกับสัญญาเอง
+  providerFeePercent: {
+    stripe: parseFloat(process.env.PROVIDER_FEE_PERCENT_STRIPE || process.env.PROVIDER_FEE_PERCENT || '1.77'),
+    ksher: parseFloat(process.env.PROVIDER_FEE_PERCENT_KSHER || '1.77'),
+    payso: parseFloat(process.env.PROVIDER_FEE_PERCENT_PAYSO || '1.77'),
+  } as Record<string, number>,
+
+  ksher: {
+    appid: process.env.KSHER_APPID || '',
+    // PEM ใน environment variable ขึ้นบรรทัดใหม่จริงไม่ได้ จึงเขียนเป็นตัวอักษร backslash ตามด้วย n
+    // แล้วแปลงกลับตรงนี้ ใช้ fromCharCode เพื่อไม่ให้ escape ซ้อนกันจนอ่านผิด
+    // (92 คือ backslash, 110 คือ n, 10 คือขึ้นบรรทัดใหม่)
+    privateKey: (process.env.KSHER_PRIVATE_KEY || '')
+      .split(String.fromCharCode(92, 110))
+      .join(String.fromCharCode(10)),
+  },
+
+  payso: {
+    merchantId: process.env.PAYSO_MERCHANT_ID || '',
+    // ยังไม่ได้ใช้จริง Payso ยังไม่เปิดสิทธิ์ API แบบ none-UI ให้บัญชีนี้
+    token: process.env.PAYSO_TOKEN || '',
+  },
   uploadsDir: process.env.UPLOADS_DIR || '/app/uploads',
   // โฟลเดอร์ที่ bind-mount ร่วมกับ host — backend เขียน credential ลงไป cron บน host อ่านไปใช้
   alertsDir: process.env.ALERTS_DIR || '/app/alerts',

@@ -4,12 +4,12 @@
 import { Router } from 'express';
 import { pool } from '../db';
 import { config } from '../config';
-import { stripeRequest } from '../stripe';
+import { getProvider } from '../lib/providers';
 import { requireDevice, DeviceRequest } from '../middleware/auth';
 import { bucketLimiter } from '../middleware/rateLimit';
 import { claimPendingCommands } from '../lib/deviceCommands';
 import { compareVersions } from '../lib/version';
-import { applyStripeStatus } from '../lib/transactionSync';
+import { applyProviderStatus } from '../lib/transactionSync';
 
 export const deviceRouter = Router();
 
@@ -24,49 +24,38 @@ deviceRouter.get('/gen_qrcode', bucketLimiter('gen_qrcode'), requireDevice, asyn
     return res.json({ success: false, error: 'amount_out_of_range' });
   }
 
-  const amountSubunits = Math.round(amount * 100);
-  const result = await stripeRequest('POST', '/payment_intents', {
-    amount: amountSubunits,
-    currency: config.currency,
-    payment_method_types: ['promptpay'],
-    payment_method_data: {
-      type: 'promptpay',
-      billing_details: { email: config.billingEmail },
-    },
-    confirm: 'true',
-  });
+  // ผู้ให้บริการถูกเลือกไว้ต่อเครื่อง ร้านคนละร้านอาจใช้คนละเจ้า
+  const provider = getProvider(req.device!.payment_provider);
 
-  if (!result.ok) {
-    console.error('gen_qrcode: Stripe error:', result.error, 'http', result.httpCode);
-    return res.json({ success: false, error: 'payment_provider_error', detail: result.error });
+  let charge;
+  try {
+    charge = await provider.createCharge(amount, config.currency);
+  } catch (err: any) {
+    console.error(`gen_qrcode: ${provider.name} ล้มเหลว:`, err?.message);
+    return res.json({ success: false, error: 'payment_provider_error', detail: err?.message });
   }
 
-  const intent = result.data;
-  const qrData = intent?.next_action?.promptpay_display_qr_code?.data ?? null;
-  const intentId = intent?.id ?? null;
-
-  if (!qrData || !intentId) {
-    console.error('gen_qrcode: missing QR data in Stripe response:', JSON.stringify(intent));
-    return res.json({ success: false, error: 'no_qr_data' });
-  }
-
+  // บันทึกชื่อผู้ให้บริการไว้กับรายการด้วย ถ้าเครื่องเปลี่ยนเจ้าทีหลัง รายการเก่าต้องยังถามสถานะถูกที่
   await pool.query(
-    'INSERT INTO transactions (device_id, payment_intent_id, amount, currency, status) VALUES (?, ?, ?, ?, ?)',
-    [req.device!.id, intentId, amount, config.currency, 'pending']
+    'INSERT INTO transactions (device_id, provider, payment_intent_id, amount, currency, status) VALUES (?, ?, ?, ?, ?, ?)',
+    [req.device!.id, provider.name, charge.ref, amount, config.currency, 'pending']
   );
 
-  res.json({ success: true, qrCodeRawData: qrData, paymentIntentId: intentId });
+  // รูปแบบคำตอบเหมือนเดิมทุกประการ เฟิร์มแวร์ที่ใช้อยู่จึงไม่ต้องแก้อะไรเลย
+  res.json({ success: true, qrCodeRawData: charge.qrPayload, paymentIntentId: charge.ref });
 });
 
 // ---- check_status: pay_chk_stat ----
 deviceRouter.get('/check_status', requireDevice, bucketLimiter('check_status'), async (req: DeviceRequest, res) => {
   const id = req.query.id as string;
-  if (!id || !/^pi_[a-zA-Z0-9]+$/.test(id)) {
+  // ไม่ตรวจรูปแบบตายตัวตรงนี้แล้ว เพราะแต่ละผู้ให้บริการใช้รูปแบบรหัสของตัวเอง
+  // ตรวจแบบกว้างๆ พอกันอักขระแปลก แล้วให้ provider ของรายการนั้นตรวจละเอียดอีกที
+  if (!id || id.length > 64 || !/^[A-Za-z0-9_-]+$/.test(id)) {
     return res.json({ success: false, error: 'invalid_id' });
   }
 
   const [rows] = await pool.query(
-    'SELECT id, device_id, status, amount, settlement_id FROM transactions WHERE payment_intent_id = ? AND device_id = ? LIMIT 1',
+    'SELECT id, device_id, provider, status, amount, settlement_id FROM transactions WHERE payment_intent_id = ? AND device_id = ? LIMIT 1',
     [id, req.device!.id]
   );
   const txn = (rows as any[])[0];
@@ -74,21 +63,25 @@ deviceRouter.get('/check_status', requireDevice, bucketLimiter('check_status'), 
     return res.status(404).json({ success: false, error: 'not_found' });
   }
 
-  // expand ไปถึง balance_transaction ในคราวเดียว จะได้รู้ fee จริงที่ Stripe หักจากเรา
-  const result = await stripeRequest('GET', `/payment_intents/${encodeURIComponent(id)}`, {
-    expand: ['latest_charge.balance_transaction'],
-  });
+  // ใช้ผู้ให้บริการที่บันทึกไว้กับรายการ ไม่ใช่ของเครื่อง ณ ตอนนี้ — เครื่องอาจถูกเปลี่ยนเจ้าไปแล้ว
+  const provider = getProvider(txn.provider);
+  if (!provider.isValidRef(id)) {
+    return res.json({ success: false, error: 'invalid_id' });
+  }
 
-  if (!result.ok) {
-    console.error(`check_status: Stripe error for ${id}:`, result.error, 'http', result.httpCode);
+  let statusResult;
+  try {
+    statusResult = await provider.getStatus(id);
+  } catch (err: any) {
+    console.error(`check_status: ${provider.name} ล้มเหลวสำหรับ ${id}:`, err?.message);
     return res.status(404).json({ success: false, error: 'not_found' });
   }
 
-  const status = result.data?.status ?? 'unknown';
+  const status = statusResult.status;
 
   // ตรรกะคิดค่าธรรมเนียม/สุทธิอยู่ที่ lib/transactionSync.ts ที่เดียว ใช้ร่วมกับ webhook และงาน
   // ตามเก็บรายการค้าง — ถ้าปล่อยให้แต่ละทางคำนวณเองจะเพี้ยนจากกันเมื่อไหร่ก็ได้
-  await applyStripeStatus(txn, status, result.data);
+  await applyProviderStatus(txn, statusResult);
 
   res.json({ success: true, status });
 });

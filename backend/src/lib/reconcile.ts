@@ -1,3 +1,8 @@
+// ตามเก็บเฉพาะรายการของ Stripe เท่านั้น
+//
+// Stripe ต้องมีตัวตามเพราะ QR ของ PromptPay ยังจ่ายได้หลังบอร์ดเลิกถามแล้ว และ webhook อาจหาย
+// ส่วน Ksher ให้เครื่องถาม check_status เอาเอง ซึ่งเพียงพอสำหรับตอนนี้ ถ้าจะเพิ่มการตามเก็บ
+// ให้ Ksher ด้วย ต้องเรียกผ่าน provider.getStatus แทน stripeRequest ที่ใช้อยู่ในไฟล์นี้
 // ตามเก็บรายการที่ค้างสถานะไม่จบ
 //
 // รายการจะค้างเมื่อบอร์ดเลิกถามก่อนที่ Stripe จะสรุปผล (เครื่องดับ เน็ตหลุด ลูกค้าเดินหนี
@@ -7,7 +12,8 @@
 // จริงหลังบอร์ดเลิกถาม การไปปิดเป็น expired ทื่อๆ จะกลืนเงินของร้านค้าหายไปเงียบๆ
 import { pool } from '../db';
 import { stripeRequest } from '../stripe';
-import { applyStripeStatus, TERMINAL_STATUSES } from './transactionSync';
+import { applyProviderStatus, TERMINAL_STATUSES } from './transactionSync';
+import { stripeIntentToStatus } from './providers/stripe';
 
 /** รอสักพักก่อนค่อยตาม ไม่ไปแย่งกับบอร์ดที่กำลังถาม check_status อยู่ */
 const MIN_AGE_MINUTES = 10;
@@ -33,9 +39,10 @@ export interface ReconcileResult {
 export async function reconcileStaleTransactions(limit = BATCH_SIZE): Promise<ReconcileResult> {
   const placeholders = TERMINAL_STATUSES.map(() => '?').join(',');
   const [rows] = await pool.query(
-    `SELECT id, device_id, payment_intent_id, status, amount, settlement_id
+    `SELECT id, device_id, provider, payment_intent_id, status, amount, settlement_id
      FROM transactions
-     WHERE status NOT IN (${placeholders})
+     WHERE provider = 'stripe'
+       AND status NOT IN (${placeholders})
        AND created_at < NOW() - INTERVAL ? MINUTE
        AND created_at > NOW() - INTERVAL ? DAY
        AND NOT (status = 'requires_payment_method' AND created_at < NOW() - INTERVAL ? HOUR)
@@ -66,7 +73,7 @@ export async function reconcileStaleTransactions(limit = BATCH_SIZE): Promise<Re
 
     const status = String(res.data?.status || '');
     const wasSucceeded = txn.status === 'succeeded';
-    const changed = await applyStripeStatus(txn, status, res.data);
+    const changed = await applyProviderStatus(txn, stripeIntentToStatus(res.data));
 
     if (changed) {
       result.updated++;

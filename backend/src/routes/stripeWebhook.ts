@@ -11,7 +11,8 @@ import { pool } from '../db';
 import { config } from '../config';
 import { verifyStripeSignature } from '../lib/webhookSignature';
 import { stripeRequest } from '../stripe';
-import { applyStripeStatus } from '../lib/transactionSync';
+import { applyProviderStatus } from '../lib/transactionSync';
+import { stripeIntentToStatus } from '../lib/providers/stripe';
 
 export const stripeWebhookRouter = Router();
 
@@ -86,7 +87,7 @@ async function handleEvent(event: any): Promise<void> {
     }
   }
 
-  const changed = await applyStripeStatus(txn, status, full);
+  const changed = await applyProviderStatus(txn, stripeIntentToStatus(full));
   if (changed) {
     console.log(`[stripe-webhook] ${intentId}: ${txn.status} -> ${status} (${type})`);
   }

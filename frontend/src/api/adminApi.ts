@@ -48,6 +48,14 @@ export const adminApi = {
     });
   },
 
+  // เปลี่ยนผู้ให้บริการของเครื่อง มีผลกับรายการใหม่เท่านั้น รายการเก่ายังผูกกับเจ้าเดิมของมัน
+  async setDeviceProvider(token: string, deviceId: number, paymentProvider: string) {
+    return this.postAction(token, 'set_provider', {
+      device_id: deviceId,
+      payment_provider: paymentProvider,
+    });
+  },
+
   async getDevices(token: string): Promise<DevicesResponse> {
     return fetchJson<DevicesResponse>(`${ADMIN_API_BASE}?resource=devices`, {
       headers: authHeaders(token),
@@ -121,8 +129,11 @@ export const adminApi = {
     return res.json();
   },
 
-  async addDevice(token: string, deviceName: string) {
-    return this.postAction(token, 'add_device', { device_name: deviceName });
+  async addDevice(token: string, deviceName: string, paymentProvider?: string) {
+    return this.postAction(token, 'add_device', {
+      device_name: deviceName,
+      payment_provider: paymentProvider,
+    });
   },
 
   async toggleDevice(token: string, deviceId: number) {

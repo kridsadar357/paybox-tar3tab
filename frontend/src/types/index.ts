@@ -9,6 +9,8 @@ export interface Device {
   firmware_version: string | null;
   customer_id: number | null;
   customer_name?: string | null;
+  /** ผู้ให้บริการรับชำระเงินของเครื่องนี้ — เลือกได้ต่อเครื่อง */
+  payment_provider?: string | null;
   entry_method?: string;
   op_mode?: string;
   fixed_amount?: number;
@@ -21,11 +23,20 @@ export interface Device {
   last_tx_activity?: string | null;
 }
 
+export interface ProviderInfo {
+  name: string;
+  /** ตั้งค่า credential ครบแล้วหรือยัง ถ้ายังจะเลือกไม่ได้ */
+  configured: boolean;
+  /** อัตราที่ผู้ให้บริการเจ้านี้เก็บจากเรา */
+  fee_percent: number;
+}
+
 export interface DevicesResponse {
   success: boolean;
   devices: Device[];
   latest_firmware: string | null;
   quiet_period_minutes: number;
+  providers?: ProviderInfo[];
 }
 
 export interface Customer {

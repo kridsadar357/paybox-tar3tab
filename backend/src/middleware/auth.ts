@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import { pool } from '../db';
 
 export interface DeviceRequest extends Request {
-  device?: { id: number; name: string; is_active: number };
+  device?: { id: number; name: string; is_active: number; payment_provider?: string | null };
 }
 export interface CustomerRequest extends Request {
   customer?: { id: number; name: string; email: string; is_active: number };
@@ -19,7 +19,7 @@ export async function requireDevice(req: DeviceRequest, res: Response, next: Nex
   if (!key) {
     return res.status(401).json({ success: false, error: 'unauthorized' });
   }
-  const [rows] = await pool.query('SELECT id, name, is_active FROM devices WHERE device_key = ? LIMIT 1', [key]);
+  const [rows] = await pool.query('SELECT id, name, is_active, payment_provider FROM devices WHERE device_key = ? LIMIT 1', [key]);
   const device = (rows as any[])[0];
   if (!device || Number(device.is_active) !== 1) {
     console.error(`Rejected request: unknown/inactive device key from ${req.ip}`);

@@ -1,14 +1,17 @@
-// อัปเดตสถานะรายการชำระเงินจากข้อมูลของ Stripe
+// อัปเดตสถานะรายการชำระเงินจากข้อมูลของผู้ให้บริการ
 //
 // ตรรกะนี้เคยอยู่ใน check_status อย่างเดียว ตอนนี้มีสามทางที่ต้องใช้: บอร์ดถาม (check_status),
 // Stripe ยิงมาบอก (webhook) และงานตามเก็บรายการค้าง (reconcile) — ถ้าปล่อยให้แต่ละทางคำนวณ
 // ค่าธรรมเนียมเองจะเพี้ยนจากกันเมื่อไหร่ก็ได้ จึงรวมไว้ที่เดียว
 import { pool } from '../db';
-import { feeFor, subunitsToBaht, settle } from './money';
+import { feeFor, settle } from './money';
+import { providerFeePercent, StatusResult } from './providers';
 
 export interface TxnRow {
   id: number;
   device_id: number;
+  /** ผู้ให้บริการที่รับเงินรายการนี้ — บันทึกไว้ตอนสร้าง ไม่ใช่อ่านจากเครื่องตอนหลัง */
+  provider?: string | null;
   status: string;
   amount: number | string;
   settlement_id?: number | null;
@@ -22,8 +25,9 @@ export interface TxnRow {
  *
  * คืนค่า true เมื่อมีการเปลี่ยนแปลงจริง
  */
-export async function applyStripeStatus(txn: TxnRow, stripeStatus: string, stripeIntent?: any): Promise<boolean> {
-  if (!stripeStatus || stripeStatus === txn.status) {
+export async function applyProviderStatus(txn: TxnRow, result: StatusResult): Promise<boolean> {
+  const newStatus = result.status;
+  if (!newStatus || newStatus === 'unknown' || newStatus === txn.status) {
     return false;
   }
 
@@ -31,7 +35,7 @@ export async function applyStripeStatus(txn: TxnRow, stripeStatus: string, strip
   // การแก้ย้อนหลังจะทำให้ยอดที่โอนไปกับยอดในระบบไม่ตรงกัน
   const alreadySettled = txn.settlement_id != null;
 
-  if (stripeStatus === 'succeeded' && txn.status !== 'succeeded' && !alreadySettled) {
+  if (newStatus === 'succeeded' && txn.status !== 'succeeded' && !alreadySettled) {
     const amount = Number(txn.amount);
     let feeAmount = 0;
     let feeTierSnapshot: string | null = null;
@@ -48,18 +52,23 @@ export async function applyStripeStatus(txn: TxnRow, stripeStatus: string, strip
       feeAmount = feeFor(amount, cust.fee_tier, Number(cust.fee_percent));
     }
 
-    const stripeFeeAmount = subunitsToBaht(stripeIntent?.latest_charge?.balance_transaction?.fee);
+    // ผู้ให้บริการบางเจ้าบอกค่าธรรมเนียมจริงมาด้วย (Stripe) บางเจ้าไม่บอก (Ksher)
+    // เจ้าที่ไม่บอกให้คิดจากอัตราที่ตั้งไว้ใน config แทน จะได้มีตัวเลขกำไรให้ดูเสมอ
+    const stripeFeeAmount =
+      result.providerFeeBaht !== null
+        ? result.providerFeeBaht
+        : Math.round(amount * (providerFeePercent(txn.provider) / 100) * 100) / 100;
     const { net, profit: profitAmount } = settle(amount, feeAmount, stripeFeeAmount);
 
     await pool.query(
       `UPDATE transactions SET status = ?, fee_amount = ?, fee_tier_snapshot = ?, net_amount = ?,
               stripe_fee_amount = ?, profit_amount = ? WHERE id = ?`,
-      [stripeStatus, feeAmount, feeTierSnapshot, net, stripeFeeAmount, profitAmount, txn.id]
+      [newStatus, feeAmount, feeTierSnapshot, net, stripeFeeAmount, profitAmount, txn.id]
     );
     return true;
   }
 
-  await pool.query('UPDATE transactions SET status = ? WHERE id = ?', [stripeStatus, txn.id]);
+  await pool.query('UPDATE transactions SET status = ? WHERE id = ?', [newStatus, txn.id]);
   return true;
 }
 

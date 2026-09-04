@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ทดสอบ Ksher Native Pay</title>
+<style>
+  :root{--paper:#f6f7f9;--surface:#fff;--ink:#141a2e;--soft:#4b5268;--faint:#868da0;
+        --line:#e0e4eb;--jade:#0f766e;--loss:#a8251c;--sunk:#edeff3}
+  @media (prefers-color-scheme:dark){:root{--paper:#0e1116;--surface:#161a21;--ink:#e9ebf0;
+        --soft:#a6adbc;--faint:#6f7787;--line:#262c37;--jade:#45c4b2;--loss:#f27866;--sunk:#1b2029}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);line-height:1.7;
+       font-family:"IBM Plex Sans Thai","Noto Sans Thai","Leelawadee UI",system-ui,sans-serif}
+  .wrap{max-width:58rem;margin:0 auto;padding:2rem 1.25rem 4rem;display:flex;flex-direction:column;gap:1.5rem}
+  h1{font-size:1.5rem;margin:0;letter-spacing:-.02em}
+  .sub{color:var(--soft);font-size:.92rem;margin:0}
+  .grid{display:grid;grid-template-columns:1fr;gap:1.25rem}
+  @media(min-width:54rem){.grid{grid-template-columns:1fr 1fr}}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:1.25rem;
+        display:flex;flex-direction:column;gap:.9rem}
+  label{display:flex;flex-direction:column;gap:.3rem;font-size:.85rem;color:var(--soft)}
+  input,select{font:inherit;font-size:.92rem;padding:.5rem .65rem;border:1px solid var(--line);
+        border-radius:3px;background:var(--paper);color:var(--ink)}
+  input:focus,select:focus{outline:2px solid var(--jade);outline-offset:1px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+  button{font:inherit;font-weight:600;padding:.6rem 1rem;border-radius:3px;border:1px solid transparent;
+        background:var(--jade);color:#fff;cursor:pointer}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  button.ghost{background:transparent;color:var(--soft);border-color:var(--line)}
+  pre{background:var(--sunk);border:1px solid var(--line);border-radius:3px;padding:.75rem;overflow:auto;
+      font-size:.76rem;margin:0;max-height:20rem;font-family:"IBM Plex Mono",ui-monospace,monospace}
+  .qr{display:flex;flex-direction:column;align-items:center;gap:.6rem;padding:1rem;background:#fff;border-radius:4px}
+  .qr img{width:260px;height:260px}
+  .err{color:var(--loss);font-size:.88rem;background:color-mix(in srgb,var(--loss) 10%,transparent);
+       padding:.6rem .8rem;border-radius:3px}
+  .ok{color:var(--jade);font-weight:600;font-size:.9rem}
+  .meta{font-size:.8rem;color:var(--faint);display:flex;flex-direction:column;gap:.2rem;
+        font-family:"IBM Plex Mono",ui-monospace,monospace;word-break:break-all}
+  .hint{font-size:.78rem;color:var(--faint)}
+  .warn{color:var(--loss);font-size:.85rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <h1>ทดสอบสร้าง QR ผ่าน Ksher</h1>
+    <p class="sub">Native Pay (C scan B) — ยิงผ่านเซิร์ฟเวอร์ในเครื่อง ไม่แตะระบบจริง</p>
+    <p class="warn" id="nokey" hidden>ยังไม่มีกุญแจส่วนตัวใน .env.local — สร้าง QR ไม่ได้จนกว่าจะใส่</p>
+  </div>
+
+  <div class="grid">
+    <form class="card" id="f">
+      <label>appid <span class="hint">รูปแบบ mch ตามด้วยตัวเลข</span>
+        <input id="appid" placeholder="mch20163" required>
+      </label>
+      <div class="row">
+        <label>จำนวนเงิน (บาท) <span class="hint">ส่งเป็นสตางค์ให้อัตโนมัติ</span>
+          <input id="amountBaht" inputmode="decimal" value="10.00" required>
+        </label>
+        <label>ช่องทาง
+          <select id="channel">
+            <option value="promptpay">promptpay</option>
+            <option value="truemoney">truemoney</option>
+            <option value="alipay">alipay</option>
+            <option value="alipayplus">alipayplus</option>
+            <option value="wechat">wechat</option>
+            <option value="airpay">airpay (ShopeePay)</option>
+            <option value="scb_qrcard">scb_qrcard</option>
+          </select>
+        </label>
+      </div>
+      <label>mch_order_no <span class="hint">ไม่เกิน 32 ตัว ห้ามซ้ำ</span>
+        <input id="mch_order_no" required>
+      </label>
+      <div class="row">
+        <label>รูปแบบภาพ
+          <select id="img_type"><option value="png">png</option><option value="svg">svg</option></select>
+        </label>
+        <label>หมดอายุใน (วินาที) <span class="hint">เว้นว่างได้</span>
+          <input id="expire_time" inputmode="numeric" placeholder="900">
+        </label>
+      </div>
+      <label>notify_url <span class="hint">เว้นว่างได้ตอนทดสอบ</span>
+        <input id="notify_url" placeholder="https://your-server/api/ksher/notify">
+      </label>
+      <div class="row">
+        <button type="submit" id="go">สร้าง QR</button>
+        <button type="button" class="ghost" id="neworder">สุ่มเลขที่สั่งซื้อใหม่</button>
+      </div>
+    </form>
+
+    <div class="card">
+      <div id="out"><p class="sub">ผลลัพธ์จะขึ้นตรงนี้</p></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <strong style="font-size:.9rem">สตริงที่เอาไปเซ็น กับคำตอบดิบจาก Ksher</strong>
+    <pre id="raw">ยังไม่ได้ยิง</pre>
+  </div>
+</div>
+
+<script>
+  const D = __DEFAULTS__;
+  const $ = (id) => document.getElementById(id);
+  if (D.appid) $('appid').value = D.appid;
+  if (!D.hasPrivateKey) $('nokey').hidden = false;
+
+  const newOrder = () => 'T' + Date.now() + Math.floor(Math.random() * 100);
+  $('mch_order_no').value = newOrder();
+  $('neworder').onclick = () => { $('mch_order_no').value = newOrder(); };
+
+  $('f').onsubmit = async (e) => {
+    e.preventDefault();
+    $('go').disabled = true;
+    $('out').innerHTML = '<p class="sub">กำลังยิง…</p>';
+    const p = {};
+    for (const k of ['appid','amountBaht','channel','mch_order_no','img_type','expire_time','notify_url'])
+      p[k] = $(k).value.trim();
+
+    try {
+      const r = await fetch('/create', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p),
+      });
+      const j = await r.json();
+      $('raw').textContent =
+        (j.signString ? 'สตริงที่เซ็น:\n' + j.signString + '\n\n' : '') +
+        'คำตอบ:\n' + JSON.stringify(j.body || j, null, 2);
+
+      if (j.errors) {
+        $('out').innerHTML = '<div class="err">' + j.errors.map((x) => '• ' + x).join('<br>') + '</div>';
+        return;
+      }
+      const d = j.body && j.body.data;
+      if (j.body && j.body.code === 0 && d && (d.imgdat || d.code_url)) {
+        const src = d.imgdat ? (d.imgdat.indexOf('data:') === 0 ? d.imgdat : 'data:image/png;base64,' + d.imgdat) : '';
+        const img = src ? '<img alt="QR" src="' + src + '">' : '<p class="sub">ไม่มีรูปมา ใช้ code_url แทน</p>';
+        const sv = j.responseSignatureValid;
+        $('out').innerHTML =
+          '<p class="ok">สำเร็จ · HTTP ' + j.httpStatus + ' · ' + j.ms + ' ms</p>' +
+          '<div class="qr">' + img + '</div>' +
+          '<div class="meta">' +
+            '<span>ksher_order_no: ' + (d.ksher_order_no || '-') + '</span>' +
+            '<span>mch_order_no: ' + (d.mch_order_no || '-') + '</span>' +
+            '<span>result: ' + (d.result || '-') + '</span>' +
+            '<span>total_fee ที่ส่งไป: ' + (j.sentParams && j.sentParams.total_fee) + ' สตางค์</span>' +
+            '<span>code_url: ' + (d.code_url || '-') + '</span>' +
+            '<span>ลายเซ็นคำตอบ: ' + (sv === null ? 'ไม่ได้ตรวจ (ยังไม่มีกุญแจสาธารณะ)' : sv ? 'ถูกต้อง' : 'ไม่ถูกต้อง') + '</span>' +
+          '</div>';
+      } else {
+        const b = j.body || {};
+        const msg = b.msg || (b.data && (b.data.err_msg || b.data.result)) || b._parseError || 'Ksher ไม่ได้ตอบว่าสำเร็จ';
+        $('out').innerHTML = '<div class="err">' + msg + ' · code ' + (b.code !== undefined ? b.code : '-') +
+          ' · HTTP ' + j.httpStatus + '</div>';
+      }
+    } catch (err) {
+      $('out').innerHTML = '<div class="err">ติดต่อเซิร์ฟเวอร์ในเครื่องไม่ได้: ' + err.message + '</div>';
+    } finally {
+      $('go').disabled = false;
+    }
+  };
+</script>
+</body>
+</html>

@@ -135,7 +135,7 @@ export const AdminDashboard: React.FC = () => {
           icon={TrendingUp}
           label="กำไรแพลตฟอร์ม"
           value={`฿${num(data?.summary?.total_profit)}`}
-          sub={`ค่าธรรมเนียม ฿${num(data?.summary?.total_fee)} − Stripe ฿${num(data?.summary?.total_stripe_fee)}`}
+          sub={`ค่าธรรมเนียม ฿${num(data?.summary?.total_fee)} − ผู้ให้บริการ ฿${num(data?.summary?.total_provider_fee)}`}
           tone="jade"
         />
         <Metric

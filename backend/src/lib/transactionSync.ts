@@ -54,16 +54,16 @@ export async function applyProviderStatus(txn: TxnRow, result: StatusResult): Pr
 
     // ผู้ให้บริการบางเจ้าบอกค่าธรรมเนียมจริงมาด้วย (Stripe) บางเจ้าไม่บอก (Ksher)
     // เจ้าที่ไม่บอกให้คิดจากอัตราที่ตั้งไว้ใน config แทน จะได้มีตัวเลขกำไรให้ดูเสมอ
-    const stripeFeeAmount =
+    const providerFeeAmount =
       result.providerFeeBaht !== null
         ? result.providerFeeBaht
         : Math.round(amount * (providerFeePercent(txn.provider) / 100) * 100) / 100;
-    const { net, profit: profitAmount } = settle(amount, feeAmount, stripeFeeAmount);
+    const { net, profit: profitAmount } = settle(amount, feeAmount, providerFeeAmount);
 
     await pool.query(
       `UPDATE transactions SET status = ?, fee_amount = ?, fee_tier_snapshot = ?, net_amount = ?,
-              stripe_fee_amount = ?, profit_amount = ? WHERE id = ?`,
-      [newStatus, feeAmount, feeTierSnapshot, net, stripeFeeAmount, profitAmount, txn.id]
+              provider_fee_amount = ?, profit_amount = ? WHERE id = ?`,
+      [newStatus, feeAmount, feeTierSnapshot, net, providerFeeAmount, profitAmount, txn.id]
     );
     return true;
   }

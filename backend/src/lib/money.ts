@@ -36,20 +36,20 @@ export function subunitsToBaht(subunits: number | null | undefined): number {
 export interface Settlement {
   /** ยอดที่ร้านค้าได้รับ */
   net: number;
-  /** ส่วนที่เหลือของแพลตฟอร์มหลังหักค่าธรรมเนียมที่ Stripe เก็บไป */
+  /** ส่วนที่เหลือของแพลตฟอร์มหลังหักค่าธรรมเนียมที่ผู้ให้บริการเก็บไป */
   profit: number;
 }
 
 /**
  * แบ่งยอดหนึ่งรายการออกเป็นส่วนของร้านค้ากับส่วนของแพลตฟอร์ม
  *
- * profit ติดลบได้จริงและไม่ถือว่าผิด — รายการยอดน้อยที่ค่าธรรมเนียมของ Stripe แพงกว่าที่เราเก็บ
+ * profit ติดลบได้จริงและไม่ถือว่าผิด — รายการยอดน้อยที่ค่าธรรมเนียมของผู้ให้บริการแพงกว่าที่เราเก็บ
  * จะขาดทุน การไปบังคับให้เป็น 0 จะทำให้รายงานกำไรดูดีกว่าความจริง
  */
-export function settle(amount: number, feeAmount: number, stripeFeeAmount: number): Settlement {
+export function settle(amount: number, feeAmount: number, providerFeeAmount: number): Settlement {
   return {
     net: round2(amount - feeAmount),
-    profit: round2(feeAmount - stripeFeeAmount),
+    profit: round2(feeAmount - providerFeeAmount),
   };
 }
 

@@ -838,7 +838,7 @@ adminRouter.get('/', async (req, res) => {
 
     const [summaryRows] = await pool.query(
       `SELECT COUNT(*) AS tx_count, COALESCE(SUM(amount),0) AS total_amount, COALESCE(SUM(fee_amount),0) AS total_fee,
-              COALESCE(SUM(stripe_fee_amount),0) AS total_stripe_fee, COALESCE(SUM(profit_amount),0) AS total_profit,
+              COALESCE(SUM(provider_fee_amount),0) AS total_provider_fee, COALESCE(SUM(profit_amount),0) AS total_profit,
               COALESCE(SUM(net_amount),0) AS total_net
        FROM transactions WHERE status = 'succeeded' AND DATE(created_at) BETWEEN ? AND ?`,
       [from, to]

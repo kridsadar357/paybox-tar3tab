@@ -145,7 +145,7 @@ export interface SummaryData {
   tx_count: number;
   total_amount: number;
   total_fee: number;
-  total_stripe_fee: number;
+  total_provider_fee: number;
   total_profit: number;
   total_net: number;
 }

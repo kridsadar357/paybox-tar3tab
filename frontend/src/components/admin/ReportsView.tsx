@@ -16,7 +16,7 @@ interface Summary {
   tx_count: number;
   total_amount: number;
   total_fee: number;
-  total_stripe_fee: number;
+  total_provider_fee: number;
   total_profit: number;
   total_net: number;
 }
@@ -36,7 +36,7 @@ interface DeviceRow {
   tx_count: number;
   total_amount: number;
   total_fee: number;
-  total_stripe_fee: number;
+  total_provider_fee: number;
   total_profit: number;
 }
 interface GroupRow {
@@ -237,7 +237,7 @@ export const ReportsView: React.FC = () => {
         <section className="grid grid-cols-2 md:grid-cols-4 gap-px" style={{ background: 'var(--line)' }}>
           <Stat label="ยอดรับชำระรวม" value={baht(s.total_amount)} />
           <Stat label="ค่าธรรมเนียมที่เก็บ" value={baht(s.total_fee)} tone="up" />
-          <Stat label="ต้นทุน Stripe" value={`−${baht(s.total_stripe_fee)}`} tone="down" />
+          <Stat label="ต้นทุน Stripe" value={`−${baht(s.total_provider_fee)}`} tone="down" />
           <Stat label="จ่ายคืนร้านค้า" value={baht(s.total_net)} />
         </section>
         {/* ---- เครื่องที่ทำผลงานสุดขั้ว ---- */}
@@ -314,7 +314,7 @@ export const ReportsView: React.FC = () => {
                         <td className="r figure">{baht(d.total_amount)}</td>
                         <td className="r figure">{baht(d.total_fee)}</td>
                         <td className="r figure" style={{ color: 'var(--ink-soft)' }}>
-                          {baht(d.total_stripe_fee)}
+                          {baht(d.total_provider_fee)}
                         </td>
                         <td
                           className="r figure font-semibold"

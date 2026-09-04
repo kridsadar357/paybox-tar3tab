@@ -216,7 +216,7 @@ CREATE TABLE IF NOT EXISTS `transactions` (
   `fee_tier_snapshot` varchar(12) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `net_amount` decimal(12,2) NOT NULL DEFAULT '0.00',
   `settlement_id` int unsigned DEFAULT NULL,
-  `stripe_fee_amount` decimal(12,2) NOT NULL DEFAULT '0.00',
+  `provider_fee_amount` decimal(12,2) NOT NULL DEFAULT '0.00',
   `profit_amount` decimal(12,2) NOT NULL DEFAULT '0.00',
   PRIMARY KEY (`id`),
   UNIQUE KEY `payment_intent_id` (`payment_intent_id`),

@@ -46,7 +46,7 @@ reportsRouter.get('/export.csv', async (req, res) => {
       `SELECT d.name, d.shop_name, d.region_zone, d.province,
               COALESCE(c.name, '') AS customer_name,
               COUNT(t.id) AS tx_count, COALESCE(SUM(t.amount),0) AS total_amount,
-              COALESCE(SUM(t.fee_amount),0) AS total_fee, COALESCE(SUM(t.stripe_fee_amount),0) AS total_stripe_fee,
+              COALESCE(SUM(t.fee_amount),0) AS total_fee, COALESCE(SUM(t.provider_fee_amount),0) AS total_provider_fee,
               COALESCE(SUM(t.profit_amount),0) AS total_profit
        FROM devices d
        LEFT JOIN customers c ON c.id = d.customer_id
@@ -66,7 +66,7 @@ reportsRouter.get('/export.csv', async (req, res) => {
         r.tx_count,
         Number(r.total_amount).toFixed(2),
         Number(r.total_fee).toFixed(2),
-        Number(r.total_stripe_fee).toFixed(2),
+        Number(r.total_provider_fee).toFixed(2),
         Number(r.total_profit).toFixed(2),
       ])
     );
@@ -76,7 +76,7 @@ reportsRouter.get('/export.csv', async (req, res) => {
   const [rows] = await pool.query(
     `SELECT ${THAI_DATE('created_at')} AS day, COUNT(*) AS tx_count,
             COALESCE(SUM(amount),0) AS total_amount, COALESCE(SUM(fee_amount),0) AS total_fee,
-            COALESCE(SUM(stripe_fee_amount),0) AS total_stripe_fee,
+            COALESCE(SUM(provider_fee_amount),0) AS total_provider_fee,
             COALESCE(SUM(profit_amount),0) AS total_profit,
             COALESCE(SUM(net_amount),0) AS total_net
      FROM transactions
@@ -98,7 +98,7 @@ reportsRouter.get('/export.csv', async (req, res) => {
       r.tx_count,
       Number(r.total_amount).toFixed(2),
       Number(r.total_fee).toFixed(2),
-      Number(r.total_stripe_fee).toFixed(2),
+      Number(r.total_provider_fee).toFixed(2),
       Number(r.total_profit).toFixed(2),
       Number(r.total_net).toFixed(2),
     ])
@@ -117,7 +117,7 @@ reportsRouter.get('/data', async (req, res) => {
 
   const [summaryRows] = await pool.query(
     `SELECT COUNT(*) AS tx_count, COALESCE(SUM(amount),0) AS total_amount, COALESCE(SUM(fee_amount),0) AS total_fee,
-            COALESCE(SUM(stripe_fee_amount),0) AS total_stripe_fee, COALESCE(SUM(profit_amount),0) AS total_profit,
+            COALESCE(SUM(provider_fee_amount),0) AS total_provider_fee, COALESCE(SUM(profit_amount),0) AS total_profit,
             COALESCE(SUM(net_amount),0) AS total_net
      FROM transactions WHERE status = 'succeeded' AND ${THAI_DATE('created_at')} BETWEEN ? AND ?`,
     [from, to]
@@ -138,7 +138,7 @@ reportsRouter.get('/data', async (req, res) => {
     `SELECT d.id, d.name, d.shop_name, d.region_zone, d.province, d.lat, d.lng,
             COALESCE(c.name, '— ไม่มีเจ้าของ —') AS customer_name,
             COUNT(t.id) AS tx_count, COALESCE(SUM(t.amount),0) AS total_amount,
-            COALESCE(SUM(t.fee_amount),0) AS total_fee, COALESCE(SUM(t.stripe_fee_amount),0) AS total_stripe_fee,
+            COALESCE(SUM(t.fee_amount),0) AS total_fee, COALESCE(SUM(t.provider_fee_amount),0) AS total_provider_fee,
             COALESCE(SUM(t.profit_amount),0) AS total_profit
      FROM devices d
      LEFT JOIN customers c ON c.id = d.customer_id
@@ -199,7 +199,7 @@ reportsRouter.get('/', async (req, res) => {
 
   const [summaryRows] = await pool.query(
     `SELECT COUNT(*) AS tx_count, COALESCE(SUM(amount),0) AS total_amount, COALESCE(SUM(fee_amount),0) AS total_fee,
-            COALESCE(SUM(stripe_fee_amount),0) AS total_stripe_fee, COALESCE(SUM(profit_amount),0) AS total_profit,
+            COALESCE(SUM(provider_fee_amount),0) AS total_provider_fee, COALESCE(SUM(profit_amount),0) AS total_profit,
             COALESCE(SUM(net_amount),0) AS total_net
      FROM transactions WHERE status = 'succeeded' AND ${THAI_DATE('created_at')} BETWEEN ? AND ?`,
     [from, to]
@@ -210,7 +210,7 @@ reportsRouter.get('/', async (req, res) => {
     `SELECT d.id, d.name, d.shop_name, d.region_zone, d.province, d.district, d.subdistrict, d.lat, d.lng,
             COALESCE(c.name, '— ไม่มีเจ้าของ —') AS customer_name,
             COUNT(t.id) AS tx_count, COALESCE(SUM(t.amount),0) AS total_amount,
-            COALESCE(SUM(t.fee_amount),0) AS total_fee, COALESCE(SUM(t.stripe_fee_amount),0) AS total_stripe_fee,
+            COALESCE(SUM(t.fee_amount),0) AS total_fee, COALESCE(SUM(t.provider_fee_amount),0) AS total_provider_fee,
             COALESCE(SUM(t.profit_amount),0) AS total_profit
      FROM devices d
      LEFT JOIN customers c ON c.id = d.customer_id
@@ -302,7 +302,7 @@ h2 { margin-top: 32px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
     <div class="card"><div class="label">ธุรกรรมสำเร็จ</div><div class="value">${summary.tx_count}</div></div>
     <div class="card"><div class="label">ยอดรวม (Gross)</div><div class="value">${fmt(summary.total_amount)}</div></div>
     <div class="card"><div class="label">Fee ที่เก็บจากลูกค้า</div><div class="value">${fmt(summary.total_fee)}</div></div>
-    <div class="card"><div class="label">Fee ที่ Stripe หักเรา</div><div class="value">${fmt(summary.total_stripe_fee)}</div></div>
+    <div class="card"><div class="label">ค่าธรรมเนียมที่ผู้ให้บริการหักเรา</div><div class="value">${fmt(summary.total_provider_fee)}</div></div>
     <div class="card ${profitClass}"><div class="label">กำไรแพลตฟอร์ม</div><div class="value">${fmt(summary.total_profit)}</div></div>
     <div class="card"><div class="label">ยอดสุทธิที่ต้องโอนลูกค้า</div><div class="value">${fmt(summary.total_net)}</div></div>
 </div>

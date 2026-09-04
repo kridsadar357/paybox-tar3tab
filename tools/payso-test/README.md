@@ -98,3 +98,24 @@ Auth Key เป็น JWT ลงนามด้วย RS256 ข้างใน�
 ต้องให้ Payso เปิดให้ก่อน หรือขอ Terminal ID ที่ Merchant Settings > TID
 เมื่อเปิดแล้วหน้าเทสต์นี้จะสร้าง QR ได้ทันทีโดยไม่ต้องแก้อะไร
 
+
+## แยกให้ชัดว่าติดตรงไหน (4 ก.ย. 2569)
+
+หลังขอ Terminal ID มาแล้ว (`TID00001`, Service Type = **`normal-payment`**, สถานะ Active)
+API `promptpaynew` ยังตอบ `the shop is not open yet` เหมือนเดิม
+
+ลองยิงช่องทาง redirect ซึ่งเป็นคนละระบบกันเพื่อแยกสาเหตุ
+
+```sh
+POST https://payments.paysolutions.asia/payment
+merchantid=89354342 refno=... total=10 channel=promptpay
+```
+
+ผลคือ `{"type":"success","status":200}` และใน payload มี `paymentResponse.error = false`
+กับ `message = ""` — **ช่องทาง redirect รับ PromptPay ของร้านนี้ได้ปกติ**
+
+แปลว่าบัญชีร้านค้าเปิด PromptPay ไว้แล้ว แต่ **API แบบ none-UI เป็นบริการแยกที่ยังไม่ได้เปิด**
+ไม่ใช่ว่าร้านยังไม่เปิดทั้งร้านอย่างที่ข้อความ error สื่อ
+
+หมายเหตุ: ช่องทาง redirect ใช้แทนกันไม่ได้ เพราะมันพาลูกค้าไปหน้าเว็บของ Payso
+ส่วนเครื่อง PayBox ต้องการรูป QR มาแสดงบนจอเอง จึงต้องใช้ none-UI API เท่านั้น
